@@ -48,13 +48,25 @@ else:
 # -------------------------
 # SECRETS
 # -------------------------
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-EMAIL_SENDER = st.secrets["EMAIL_SENDER"]
-EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"]
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
+EMAIL_SENDER = st.secrets.get("EMAIL_SENDER", "")
+EMAIL_PASSWORD = st.secrets.get("EMAIL_PASSWORD", "")
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 openai.api_key = OPENAI_API_KEY
 
-EDITOR_PASSWORD = "aceluffy"  # Replace with your password
+EDITOR_PASSWORD = "aceluffy"  # Editor login password
+
+# -------------------------
+# SPECIAL QUESTION FOR GAMES ACCESS
+# -------------------------
+# <<< SET YOUR QUESTION AND ANSWER HERE >>>
+SPECIAL_QUESTION = "Who do i like?"
+SPECIAL_ANSWER = "my sis's"  # <-- Replace this with your secret answer
+
+# -------------------------
+# COLOR-BLIND MODE
+# -------------------------
+color_blind_mode = st.sidebar.checkbox("Color-Blind Friendly Mode")
 
 # -------------------------
 # USER TYPE SELECTION
@@ -90,12 +102,15 @@ if user_type == "Learner":
 
         fig, ax = plt.subplots()
         y_positions = [1, 2, 3, 4]
-        ax.scatter(factors_a, [y_positions[0]]*len(factors_a), marker="s", color="orange", label="Factors A")
-        ax.scatter(factors_b, [y_positions[1]]*len(factors_b), marker="s", color="blue", label="Factors B")
-        ax.scatter(multiples_a, [y_positions[2]]*len(multiples_a), marker="o", color="green", label="Multiples A")
-        ax.scatter(multiples_b, [y_positions[3]]*len(multiples_b), marker="o", color="red", label="Multiples B")
-        ax.scatter(lcm, 2.5, color="green", s=120, label="LCM")
-        ax.scatter(gcd, 0.5, color="orange", s=120, label="GCD")
+        c1, c2, c3, c4 = "orange", "blue", "green", "red"
+        if color_blind_mode:
+            c1, c2, c3, c4 = "#E69F00", "#56B4E9", "#009E73", "#D55E00"  # color-blind friendly palette
+        ax.scatter(factors_a, [y_positions[0]]*len(factors_a), marker="s", color=c1, label="Factors A")
+        ax.scatter(factors_b, [y_positions[1]]*len(factors_b), marker="s", color=c2, label="Factors B")
+        ax.scatter(multiples_a, [y_positions[2]]*len(multiples_a), marker="o", color=c3, label="Multiples A")
+        ax.scatter(multiples_b, [y_positions[3]]*len(multiples_b), marker="o", color=c4, label="Multiples B")
+        ax.scatter(lcm, 2.5, color=c3, s=120, label="LCM")
+        ax.scatter(gcd, 0.5, color=c1, s=120, label="GCD")
         for x in factors_a: ax.text(x, 1.05, str(x), ha="center")
         for x in factors_b: ax.text(x, 2.05, str(x), ha="center")
         for x in multiples_a: ax.text(x, 3.05, str(x), ha="center")
@@ -133,48 +148,47 @@ if user_type == "Learner":
     # Simultaneous Equations
     # -------------------------
     elif topic == "Simultaneous Equations":
-        st.header("Interactive Simultaneous Equation Solver & Plot")
+        st.header("Interactive Simultaneous Equation Solver")
+        st.write("Enter your 2x2 equations:")
 
-        # User inputs for coefficients and constants
-        a1 = st.number_input("Enter a₁", value=2, min_value=-100, max_value=100, step=1)
-        b1 = st.number_input("Enter b₁", value=3, min_value=-100, max_value=100, step=1)
-        c1 = st.number_input("Enter c₁", value=11, min_value=-100, max_value=100, step=1)
+        a1 = st.number_input("a1", value=2)
+        b1 = st.number_input("b1", value=3)
+        c1 = st.number_input("c1", value=11)
+        a2 = st.number_input("a2", value=1)
+        b2 = st.number_input("b2", value=-1)
+        c2 = st.number_input("c2", value=1)
 
-        a2 = st.number_input("Enter a₂", value=1, min_value=-100, max_value=100, step=1)
-        b2 = st.number_input("Enter b₂", value=-1, min_value=-100, max_value=100, step=1)
-        c2 = st.number_input("Enter c₂", value=1, min_value=-100, max_value=100, step=1)
-
-        # Show the equations
-        st.subheader("Your Equations")
-        st.write(f"{a1}x + {b1}y = {c1}")
-        st.write(f"{a2}x + {b2}y = {c2}")
-
-        if st.button("Solve & Plot"):
+        if st.button("Solve & Animate"):
             det = a1*b2 - a2*b1
             if det == 0:
-                st.error("No unique solution exists (lines are parallel or identical)")
+                st.error("No unique solution (lines may be parallel)")
             else:
-                # Solve for x and y
                 x_sol = (c1*b2 - c2*b1)/det
                 y_sol = (a1*c2 - a2*c1)/det
                 st.success(f"Solution: x = {x_sol}, y = {y_sol}")
 
-                # Prepare line data
-                x_vals = np.linspace(-20, 20, 400)
+                x_vals = np.linspace(-10, 10, 400)
                 y1_vals = (c1 - a1*x_vals)/b1
                 y2_vals = (c2 - a2*x_vals)/b2
 
-                # Plot
                 fig, ax = plt.subplots(figsize=(8,6))
-                ax.plot(x_vals, y1_vals, label=f"{a1}x + {b1}y = {c1}")
-                ax.plot(x_vals, y2_vals, label=f"{a2}x + {b2}y = {c2}")
-                ax.scatter([x_sol], [y_sol], color="red", s=100, zorder=5, label="Solution")
+                line1, = ax.plot([], [], label=f"{a1}x + {b1}y = {c1}")
+                line2, = ax.plot([], [], label=f"{a2}x + {b2}y = {c2}")
+                point, = ax.plot([], [], 'ro', markersize=10)
+
+                ax.set_xlim(-10,10)
+                ax.set_ylim(-10,10)
                 ax.grid(True)
+                ax.legend()
                 ax.set_xlabel("x")
                 ax.set_ylabel("y")
-                ax.set_title("Simultaneous Equations")
-                ax.legend()
-                st.pyplot(fig)
+                ax.set_title("Lines moving toward intersection")
+
+                for i in range(len(x_vals)):
+                    line1.set_data(x_vals[:i], y1_vals[:i])
+                    line2.set_data(x_vals[:i], y2_vals[:i])
+                    point.set_data(x_sol, y_sol)
+                    st.pyplot(fig)
 
     # -------------------------
     # Learner-Teacher Chat
@@ -288,10 +302,27 @@ elif user_type == "Editor":
                 except Exception as e:
                     st.error(e)
 
-        # 3D Game
-        st.subheader("Play Your Private 3D Game")
-        game_url = "https://www.hero-wars.com/?hl=en"
-        st.markdown(f"[Click to play your 3D game]({game_url})")
-        components.iframe(game_url, width=1000, height=600)
-    else:
-        st.info("Enter editor password to access this section.")
+        # -------------------------
+        # PRIVATE GAME ACCESS
+        # -------------------------
+        st.subheader("Play Your Games (Private Access)")
+        user_answer = st.text_input(SPECIAL_QUESTION)
+        if user_answer == SPECIAL_ANSWER:
+            st.success("Access granted! You can now play the games.")
+            game_option = st.selectbox(
+                "Choose a Game to Play",
+                ["Hero Wars 3D", "Mini GTA Sandbox"]
+            )
+
+            if game_option == "Hero Wars 3D":
+                game_url = "https://www.hero-wars.com/?hl=en"
+                st.markdown(f"[Click to play Hero Wars 3D]({game_url})")
+                components.iframe(game_url, width=1000, height=600)
+
+            elif game_option == "Mini GTA Sandbox":
+                st.markdown("**Mini GTA Sandbox** – 2D top-down open-world game demo")
+                st.write("Use arrow keys to move your character. Drive cars and explore the map!")
+                gta_demo_url = "https://yourhostedminigta.com"  # Hosted HTML5/JS version
+                components.iframe(gta_demo_url, width=1000, height=600)
+        else:
+            st.info("You must answer the special question correctly to access the games.")
