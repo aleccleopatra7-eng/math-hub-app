@@ -21,6 +21,14 @@ st.set_page_config(
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
+# SESSION STATE INITIALIZATION
+# -------------------------
+if 'teacher_logged_in' not in st.session_state:
+    st.session_state['teacher_logged_in'] = False
+if 'teacher_name' not in st.session_state:
+    st.session_state['teacher_name'] = ""
+
+# -------------------------
 # PASSWORD STORAGE FILE
 # -------------------------
 PASSWORD_FILE = "teachers.json"
@@ -67,7 +75,6 @@ if user_type == "Learner":
         with open(topic_file, "r") as f:
             code = f.read()
         exec(code)
-
     else:
         # BUILT-IN TOPICS
         if tool == "LCM & GCD":
@@ -168,53 +175,55 @@ if user_type == "Learner":
                     st.error("Error parsing equations. Use format ax + by = c.")
 
 # -------------------------
-# TEACHER SECTION WITH EDITOR APPROVAL
+# TEACHER SECTION WITH SESSION PERSISTENCE
 # -------------------------
 elif user_type == "Teacher":
     st.header("Teacher Section")
     st.write("Submit a new math topic. Requires editor approval.")
 
-    # Teacher login / registration
-    action = st.radio("Login or Register", ["Login", "Register"])
-    teacher_name = st.text_input("Teacher Username")
-    teacher_password = st.text_input("Password", type="password")
+    # Show login if not logged in
+    if not st.session_state['teacher_logged_in']:
+        teacher_name = st.text_input("Username")
+        teacher_password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
+                st.session_state['teacher_logged_in'] = True
+                st.session_state['teacher_name'] = teacher_name
+                st.success(f"Welcome, {teacher_name}!")
+            else:
+                st.error("Invalid credentials. Please register first.")
+        if st.button("Register"):
+            if teacher_name in teacher_data:
+                st.error("Username exists. Choose another.")
+            else:
+                teacher_data[teacher_name] = teacher_password
+                with open(PASSWORD_FILE, "w") as f:
+                    json.dump(teacher_data, f)
+                st.success("Registered successfully!")
+    else:
+        st.success(f"Logged in as: {st.session_state['teacher_name']}")
 
-    if action == "Register" and st.button("Register"):
-        if teacher_name in teacher_data:
-            st.error("Username exists. Choose another.")
-        else:
-            teacher_data[teacher_name] = teacher_password
-            with open(PASSWORD_FILE, "w") as f:
-                json.dump(teacher_data, f)
-            st.success("Registered successfully!")
-
-    elif action == "Login" and st.button("Login"):
-        if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
-            st.success("Login successful! Submit topics below.")
-
-            topic_name = st.text_input("Topic Name")
-            topic_description = st.text_area("Topic Description")
-            topic_code = st.text_area("Topic Code")
-
-            editor_password = st.text_input("Editor Approval Password", type="password")
-            if st.button("Submit Topic for Approval"):
-                if editor_password == "mercy paul i love you":  # Your master password
-                    recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
-
-                    msg = EmailMessage()
-                    msg['Subject'] = f"New Topic Submitted: {topic_name}"
-                    msg['From'] = "aleccleopatra7@gmail.com"
-                    msg['To'] = ", ".join(recipients)
-                    msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
-
-                    try:
-                        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                            smtp.login("aleccleopatra7@gmail.com","aceluffy#")
-                            smtp.send_message(msg)
-                        st.success("Topic submitted and emailed to editor!")
-                    except Exception as e:
-                        st.error(f"Failed to send email: {e}")
-                else:
-                    st.error("Invalid editor password. Submission blocked.")
-        else:
-            st.error("Invalid teacher login.")
+        # Topic submission form
+        topic_name = st.text_input("Topic Name")
+        topic_description = st.text_area("Topic Description")
+        topic_code = st.text_area("Topic Code")
+        editor_password = st.text_input("Editor Approval Password", type="password")
+        if st.button("Submit Topic for Approval"):
+            if editor_password == "mercy paul i love you":  # master password
+                email_sender = "your_email_here@gmail.com"  # replace with your email
+                email_password = "aceluffy#"
+                recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
+                msg = EmailMessage()
+                msg['Subject'] = f"New Topic Submitted: {topic_name}"
+                msg['From'] = email_sender
+                msg['To'] = ", ".join(recipients)
+                msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
+                try:
+                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                        smtp.login(email_sender,email_password)
+                        smtp.send_message(msg)
+                    st.success("Topic submitted and emailed to editor!")
+                except Exception as e:
+                    st.error(f"Failed to send email: {e}")
+            else:
+                st.error("Invalid editor password. Submission blocked.")
