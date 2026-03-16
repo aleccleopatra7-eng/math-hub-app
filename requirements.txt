@@ -1,4 +1,4 @@
-ipywidgets
-matplotlib
+streamlit
 numpy
-qrcode[pil]
+matplotlib
+PyGithub
