@@ -40,17 +40,40 @@ if tool == "LCM & GCD":
         multiples_a=[a*i for i in range(1,10)]
         multiples_b=[b*i for i in range(1,10)]
 
+        factors_a=[i for i in range(1,a+1) if a%i==0]
+        factors_b=[i for i in range(1,b+1) if b%i==0]
+
         fig,ax=plt.subplots()
 
-        ax.scatter(multiples_a,[1]*len(multiples_a),label="Multiples A")
-        ax.scatter(multiples_b,[2]*len(multiples_b),label="Multiples B")
+        ax.scatter(multiples_a,[3]*len(multiples_a),label="Multiples A ⭐")
+        ax.scatter(multiples_b,[4]*len(multiples_b),label="Multiples B ⭐")
 
-        ax.scatter(lcm,1.5,color="green",s=100,label="LCM")
-        ax.scatter(gcd,0.5,color="orange",s=100,label="GCD")
+        ax.scatter(factors_a,[1]*len(factors_a),marker="s",label="Factors A ⬛")
+        ax.scatter(factors_b,[2]*len(factors_b),marker="s",label="Factors B ⬛")
 
+        ax.scatter(lcm,3.5,color="green",s=120,label="LCM")
+        ax.scatter(gcd,0.5,color="orange",s=120,label="GCD")
+
+        # Label points
+        for x in multiples_a:
+            ax.text(x,3.05,str(x),ha="center")
+
+        for x in multiples_b:
+            ax.text(x,4.05,str(x),ha="center")
+
+        for x in factors_a:
+            ax.text(x,1.05,str(x),ha="center")
+
+        for x in factors_b:
+            ax.text(x,2.05,str(x),ha="center")
+
+        ax.set_yticks([0.5,1,2,3,3.5,4])
+        ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","LCM","Multiples B"])
+
+        ax.grid(True)
         ax.legend()
-        st.pyplot(fig)
 
+        st.pyplot(fig)
 # -------------------------
 # PRIME FACTORS
 # -------------------------
@@ -107,6 +130,12 @@ elif tool == "Simultaneous Equations":
     b2=st.number_input("b2",value=-1)
     c2=st.number_input("c2",value=1)
 
+    # Show the equations generated
+    st.subheader("Generated Equations")
+
+    st.write(f"{a1}x + {b1}y = {c1}")
+    st.write(f"{a2}x + {b2}y = {c2}")
+
     if st.button("Solve"):
 
         det=a1*b2-a2*b1
@@ -116,7 +145,7 @@ elif tool == "Simultaneous Equations":
             x=(c1*b2-c2*b1)/det
             y=(a1*c2-a2*c1)/det
 
-            st.success(f"x = {x}, y = {y}")
+            st.success(f"Solution: x = {x}, y = {y}")
 
             x_vals=np.linspace(-10,10,400)
 
@@ -125,13 +154,13 @@ elif tool == "Simultaneous Equations":
 
             fig,ax=plt.subplots()
 
-            ax.plot(x_vals,y1,label="Eq1")
-            ax.plot(x_vals,y2,label="Eq2")
+            ax.plot(x_vals,y1,label=f"{a1}x + {b1}y = {c1}")
+            ax.plot(x_vals,y2,label=f"{a2}x + {b2}y = {c2}")
 
-            ax.scatter(x,y,color="red",s=100)
+            ax.scatter(x,y,color="red",s=120)
 
-            ax.legend()
             ax.grid(True)
+            ax.legend()
 
             st.pyplot(fig)
 
