@@ -56,13 +56,12 @@ if user_type == "Learner":
     all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
     tool = st.sidebar.selectbox("Choose Topic", all_topics)
 
-    # Execute dynamic topic code
     if tool in dynamic_topics:
         st.subheader(f"Dynamic Topic: {tool}")
         with open(dynamic_topics[tool], "r") as f:
             exec(f.read())
     else:
-        # Built-in topics
+        # BUILT-IN TOPICS
         if tool == "LCM & GCD":
             st.header("LCM & GCD Visualizer")
             a = st.number_input("Number 1", 1, 50, 6)
@@ -91,6 +90,7 @@ if user_type == "Learner":
                        marker="o", color="red" if not colorblind else "brown", label="Multiples B")
             ax.scatter(lcm, 2.5, color="green" if not colorblind else "purple", s=120, label="LCM")
             ax.scatter(gcd, 0.5, color="orange" if not colorblind else "black", s=120, label="GCD")
+
             for x in factors_a: ax.text(x,1.05,str(x),ha="center")
             for x in factors_b: ax.text(x,2.05,str(x),ha="center")
             for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
@@ -110,35 +110,42 @@ elif user_type == "Teacher":
 
     teacher_name = st.text_input("Teacher Username")
     teacher_password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
+
+    # Teacher registration if new
+    if st.button("Register / Login"):
+        if teacher_name not in teacher_data:
+            teacher_data[teacher_name] = teacher_password
+            with open(PASSWORD_FILE, "w") as f:
+                json.dump(teacher_data, f)
+            st.success("Registered successfully! Logged in.")
+        elif teacher_data.get(teacher_name) == teacher_password:
             st.success("Login successful!")
-
-            topic_name = st.text_input("Topic Name")
-            topic_description = st.text_area("Topic Description")
-            topic_code = st.text_area("Topic Code")
-
-            if st.button("Submit Topic for Approval"):
-                # Email editor for approval
-                email_sender = "aleccleopatra7@gmail.com"      # replace with your sender email
-                email_password = "skqa pymt xkui buiu "                     # replace with your sender email password
-                recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
-
-                msg = EmailMessage()
-                msg['Subject'] = f"New Topic Submitted: {topic_name}"
-                msg['From'] = email_sender
-                msg['To'] = ", ".join(recipients)
-                msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
-
-                try:
-                    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                        smtp.login(email_sender,email_password)
-                        smtp.send_message(msg)
-                    st.success("Topic submitted! Editor notified via email.")
-                except Exception as e:
-                    st.error(f"Failed to send email: {e}")
         else:
-            st.error("Invalid teacher login.")
+            st.error("Incorrect password.")
+
+        # Topic submission form
+        topic_name = st.text_input("Topic Name")
+        topic_description = st.text_area("Topic Description")
+        topic_code = st.text_area("Topic Code")
+
+        if st.button("Submit Topic for Approval"):
+            email_sender = "aleccleopatra7@gmail.com"
+            email_password = "aceluffy#"
+            recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
+
+            msg = EmailMessage()
+            msg['Subject'] = f"New Topic Submitted: {topic_name}"
+            msg['From'] = email_sender
+            msg['To'] = ", ".join(recipients)
+            msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
+
+            try:
+                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                    smtp.login(email_sender,email_password)
+                    smtp.send_message(msg)
+                st.success("Topic submitted! Editor notified via email.")
+            except Exception as e:
+                st.error(f"Failed to send email: {e}")
 
 # -------------------------
 # EDITOR SECTION
@@ -147,10 +154,10 @@ elif user_type == "Editor":
     st.header("Editor Dashboard")
     st.write("Approve new topics submitted by teachers and push to GitHub.")
 
-    github_token = os.getenv("GITHUB_TOKEN")  # set in env variables
+    github_token = os.getenv("GITHUB_TOKEN")
     repo_name = st.text_input("GitHub repo (username/repo)")
 
-    topic_file = st.file_uploader("Upload teacher submitted topic (Python .py file)")
+    topic_file = st.file_uploader("Upload teacher submitted topic (.py)")
     if st.button("Approve & Push"):
         if topic_file and github_token:
             try:
