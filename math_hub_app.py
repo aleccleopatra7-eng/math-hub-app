@@ -54,8 +54,8 @@ EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
 
-# Put your editor password here
-EDITOR_PASSWORD = "your_editor_password_here"  # <<-- Replace with your editor password
+# Editor password
+EDITOR_PASSWORD = "mercypaul123"  # <-- Set your editor password here
 
 # -------------------------
 # USER TYPE SELECTION
@@ -108,7 +108,7 @@ if user_type == "Learner":
         st.pyplot(fig)
 
     # -------------------------
-    # Other Topics
+    # Ratios
     # -------------------------
     elif topic == "Ratios":
         st.header("Ratios")
@@ -116,6 +116,9 @@ if user_type == "Learner":
         b = st.number_input("Value B", 1, 100, 6)
         st.write(f"The ratio A:B is {a}:{b}")
 
+    # -------------------------
+    # Prime Factors
+    # -------------------------
     elif topic == "Prime Factors":
         st.header("Prime Factors")
         n = st.number_input("Enter a number", 2, 100, 12)
@@ -127,6 +130,9 @@ if user_type == "Learner":
                 temp = temp // i
         st.write("Prime factors:", factors)
 
+    # -------------------------
+    # Simultaneous Equations
+    # -------------------------
     elif topic == "Simultaneous Equations":
         st.header("Solve 2x2 Simultaneous Equations")
         st.write("Equation format: a1*x + b1*y = c1, a2*x + b2*y = c2")
@@ -213,7 +219,8 @@ elif user_type == "Teacher":
 elif user_type == "Editor":
     st.header("Editor Dashboard")
     editor_pass_input = st.text_input("Enter Editor Password", type="password")
-    if editor_pass_input == EDITOR_PASSWORD:mercypaul123
+
+    if editor_pass_input == EDITOR_PASSWORD:
         st.session_state.editor_logged_in = True
 
     if st.session_state.editor_logged_in:
