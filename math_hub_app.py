@@ -53,7 +53,8 @@ EMAIL_SENDER = st.secrets["EMAIL_SENDER"]
 EMAIL_PASSWORD = st.secrets["EMAIL_PASSWORD"]
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 openai.api_key = OPENAI_API_KEY
-EDITOR_PASSWORD = "ri8250ya"  # Replace this with your editor password
+
+EDITOR_PASSWORD = "aceluffy"  # Replace with your password
 
 # -------------------------
 # USER TYPE SELECTION
@@ -104,24 +105,21 @@ if user_type == "Learner":
         ax.grid(True)
         ax.legend()
         st.pyplot(fig)
-        
+
     # -------------------------
     # Ratios
     # -------------------------
     elif topic == "Ratios":
-        st.subheader("Ratios")
+        st.header("Ratios")
         a = st.number_input("Value A", 1, 100, 4)
         b = st.number_input("Value B", 1, 100, 6)
         st.write(f"The ratio A:B is {a}:{b}")
-        fig, ax = plt.subplots()
-        ax.bar(["A", "B"], [a, b], color=["orange", "blue"])
-        st.pyplot(fig)
-        
+
     # -------------------------
     # Prime Factors
     # -------------------------
     elif topic == "Prime Factors":
-        st.subheader("Prime Factors")
+        st.header("Prime Factors")
         n = st.number_input("Enter a number", 2, 100, 12)
         factors = []
         temp = n
@@ -130,38 +128,30 @@ if user_type == "Learner":
                 factors.append(i)
                 temp = temp // i
         st.write("Prime factors:", factors)
-        fig, ax = plt.subplots()
-        ax.bar(range(len(factors)), factors, color="green")
-        st.pyplot(fig)
-        
+
     # -------------------------
     # Simultaneous Equations
     # -------------------------
     elif topic == "Simultaneous Equations":
-        st.subheader("Solve 2x2 Simultaneous Equations")
-        st.write("Equation format: a1*x + b1*y = c1, a2*x + b2*y = c2")
-        a1 = st.number_input("a1", value=1)
-        b1 = st.number_input("b1", value=1)
-        c1 = st.number_input("c1", value=2)
-        a2 = st.number_input("a2", value=1)
-        b2 = st.number_input("b2", value=1)
-        c2 = st.number_input("c2", value=3)
+        st.header("2x2 Simultaneous Equations Generator")
+        a1 = np.random.randint(1, 10)
+        b1 = np.random.randint(1, 10)
+        c1 = np.random.randint(1, 20)
+        a2 = np.random.randint(1, 10)
+        b2 = np.random.randint(1, 10)
+        c2 = np.random.randint(1, 20)
+
+        st.write(f"Equation 1: {a1}*x + {b1}*y = {c1}")
+        st.write(f"Equation 2: {a2}*x + {b2}*y = {c2}")
+
         det = a1*b2 - a2*b1
         if det != 0:
             x = (c1*b2 - c2*b1)/det
             y = (a1*c2 - a2*c1)/det
-            st.success(f"x = {x}, y = {y}")
+            st.success(f"Solution: x = {x}, y = {y}")
         else:
             st.error("No unique solution exists")
-            
-    # -------------------------
-    # Dynamic topics
-    # -------------------------
-    elif topic in dynamic_topics:
-        file_path = f"topics/{topic.replace(' ', '_')}.py"
-        with open(file_path) as f:
-            exec(f.read())
-    
+
     # -------------------------
     # Learner-Teacher Chat
     # -------------------------
@@ -184,3 +174,100 @@ if user_type == "Learner":
     st.write("Messages:")
     for msg in chat_history:
         st.write(f"{msg['sender']}: {msg['message']}")
+
+# =====================================================
+# TEACHER SECTION
+# =====================================================
+elif user_type == "Teacher":
+    st.header("Teacher Portal")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    teacher_number = st.text_input("Your Number Tag (for chat)")
+
+    if st.button("Register / Login"):
+        if username not in teacher_data:
+            teacher_data[username] = password
+            with open(PASSWORD_FILE, "w") as f:
+                json.dump(teacher_data, f)
+            st.success("Registered successfully")
+            st.session_state.teacher_logged_in = True
+            st.session_state.teacher_name = username
+        elif teacher_data[username] == password:
+            st.success("Login successful")
+            st.session_state.teacher_logged_in = True
+            st.session_state.teacher_name = username
+        else:
+            st.error("Wrong password")
+
+    if st.session_state.teacher_logged_in:
+        st.subheader("Submit Topic Description")
+        topic_name = st.text_input("Topic Name")
+        topic_description = st.text_area("Topic Description")
+        if st.button("Submit Description"):
+            submission = {
+                "teacher": st.session_state.teacher_name,
+                "topic_number": teacher_number,
+                "topic_name": topic_name,
+                "topic_description": topic_description
+            }
+            filename = f"{topic_name.replace(' ', '_')}.json"
+            with open(f"submissions/{filename}", "w") as f:
+                json.dump(submission, f)
+            st.success("Topic description submitted for editor approval!")
+
+# =====================================================
+# EDITOR SECTION
+# =====================================================
+elif user_type == "Editor":
+    st.header("Editor Dashboard")
+    editor_pass_input = st.text_input("Enter Editor Password", type="password")
+    if editor_pass_input == EDITOR_PASSWORD:
+        st.session_state.editor_logged_in = True
+
+    if st.session_state.editor_logged_in:
+        st.subheader("Approve Topics & Generate Python Code")
+        repo_name = st.text_input("GitHub Repo (username/repo)")
+        submissions = glob.glob("submissions/*.json")
+        for file in submissions:
+            with open(file) as f:
+                data = json.load(f)
+            st.write("Teacher:", data["teacher"])
+            st.write("Topic Name:", data["topic_name"])
+            st.write("Description:", data["topic_description"])
+            st.code(data.get("topic_code", ""))
+
+            if st.button(f"Generate Code for {data['topic_name']}", key=file):
+                prompt = f"Generate a Python code snippet for the following topic:\n{data['topic_description']}"
+                response = openai.Completion.create(
+                    model="text-davinci-003",
+                    prompt=prompt,
+                    max_tokens=500
+                )
+                generated_code = response.choices[0].text.strip()
+                data["topic_code"] = generated_code
+                with open(file, "w") as f:
+                    json.dump(data, f)
+                st.code(generated_code)
+                st.success("Code generated!")
+
+            if st.button(f"Approve & Push {data['topic_name']}", key=file+"_push"):
+                try:
+                    g = Github(GITHUB_TOKEN)
+                    repo = g.get_repo(repo_name)
+                    filename = f"topics/{data['topic_name'].replace(' ', '_')}.py"
+                    if os.path.exists(filename):
+                        repo.update_file(filename, f"Update topic {data['topic_name']}", data["topic_code"], repo.get_contents(filename).sha)
+                    else:
+                        repo.create_file(filename, f"Add topic {data['topic_name']}", data["topic_code"])
+                    os.rename(file, f"approved/{os.path.basename(file)}")
+                    st.success("Topic approved and pushed to GitHub!")
+                except Exception as e:
+                    st.error(e)
+
+        # 3D Game
+        st.subheader("Play Your Private 3D Game")
+        game_url = "https://www.hero-wars.com/?hl=en"
+        st.markdown(f"[Click to play your 3D game]({game_url})")
+        components.iframe(game_url, width=1000, height=600)
+    else:
+        st.info("Enter editor password to access this section.")
