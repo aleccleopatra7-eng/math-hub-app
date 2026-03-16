@@ -236,7 +236,7 @@ elif user_type == "Teacher":
 elif user_type == "Editor":
     st.header("Editor Dashboard")
     editor_password = st.text_input("Enter Editor Password", type="password")
-    if editor_password != "YOUR_EDITOR_PASSWORD":
+    if editor_password != "mathematics":
         st.warning("Enter correct password to access submissions.")
     else:
         repo_name = st.text_input("GitHub Repo (username/repo)")
