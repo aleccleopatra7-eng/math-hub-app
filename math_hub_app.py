@@ -72,7 +72,7 @@ if user_type == "Learner":
     
     topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
     
-    # -------------------------
+    # -------------------- -----
     # LCM & GCD
     # -------------------------
     if topic == "LCM & GCD":
