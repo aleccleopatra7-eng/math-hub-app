@@ -5,31 +5,24 @@ import matplotlib.pyplot as plt
 import os
 import glob
 import re
-import smtplib
-from email.message import EmailMessage
 import json
+from email.message import EmailMessage
+import smtplib
+from github import Github
 
 # -------------------------
 # PAGE SETTINGS
 # -------------------------
-st.set_page_config(
-    page_title="Interactive Math Hub",
-    page_icon="📊",
-    layout="centered"
-)
-
+st.set_page_config(page_title="Interactive Math Hub", page_icon="📊", layout="centered")
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
-# SESSION STATE INITIALIZATION
+# USER TYPE SELECTION
 # -------------------------
-if 'teacher_logged_in' not in st.session_state:
-    st.session_state['teacher_logged_in'] = False
-if 'teacher_name' not in st.session_state:
-    st.session_state['teacher_name'] = ""
+user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 
 # -------------------------
-# PASSWORD STORAGE FILE
+# PASSWORD FILE (for teachers)
 # -------------------------
 PASSWORD_FILE = "teachers.json"
 if os.path.exists(PASSWORD_FILE):
@@ -39,16 +32,11 @@ else:
     teacher_data = {}
 
 # -------------------------
-# USER TYPE SELECTION
-# -------------------------
-user_type = st.radio("I am a:", ["Learner", "Teacher"])
-
-# -------------------------
 # LEARNER SECTION
 # -------------------------
 if user_type == "Learner":
     st.header("Learner Section")
-    st.write("Welcome! Choose a topic from the sidebar to explore.")
+    st.write("Choose a topic from the sidebar to explore.")
 
     # Built-in topics
     default_topics = {
@@ -68,15 +56,13 @@ if user_type == "Learner":
     all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
     tool = st.sidebar.selectbox("Choose Topic", all_topics)
 
-    # Execute topic code
+    # Execute dynamic topic code
     if tool in dynamic_topics:
         st.subheader(f"Dynamic Topic: {tool}")
-        topic_file = dynamic_topics[tool]
-        with open(topic_file, "r") as f:
-            code = f.read()
-        exec(code)
+        with open(dynamic_topics[tool], "r") as f:
+            exec(f.read())
     else:
-        # BUILT-IN TOPICS
+        # Built-in topics
         if tool == "LCM & GCD":
             st.header("LCM & GCD Visualizer")
             a = st.number_input("Number 1", 1, 50, 6)
@@ -91,7 +77,6 @@ if user_type == "Learner":
             factors_b = [i for i in range(1, b+1) if b % i == 0]
             multiples_a = [a*i for i in range(1, 10)]
             multiples_b = [b*i for i in range(1, 10)]
-
             colorblind = st.checkbox("Enable color-blind friendly mode")
 
             fig, ax = plt.subplots()
@@ -106,124 +91,81 @@ if user_type == "Learner":
                        marker="o", color="red" if not colorblind else "brown", label="Multiples B")
             ax.scatter(lcm, 2.5, color="green" if not colorblind else "purple", s=120, label="LCM")
             ax.scatter(gcd, 0.5, color="orange" if not colorblind else "black", s=120, label="GCD")
-
             for x in factors_a: ax.text(x,1.05,str(x),ha="center")
             for x in factors_b: ax.text(x,2.05,str(x),ha="center")
             for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
             for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
-
             ax.set_yticks([0.5,1,2,3,4,2.5])
             ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
             ax.grid(True)
             ax.legend()
             st.pyplot(fig)
 
-        elif tool == "Prime Factors":
-            st.header("Prime Factorization")
-            num = int(st.number_input("Enter number", value=24))
-            def prime_factors(n):
-                factors = []
-                d = 2
-                while n > 1:
-                    while n % d == 0:
-                        factors.append(d)
-                        n //= d
-                    d += 1
-                return factors
-            if st.button("Find Prime Factors"):
-                factors = prime_factors(num)
-                st.success(f"Prime Factors: {factors}")
-
-        elif tool == "Ratios":
-            st.header("Ratio Simplifier")
-            a = st.number_input("First Number", value=4)
-            b = st.number_input("Second Number", value=8)
-            if st.button("Simplify Ratio"):
-                g = math.gcd(a,b)
-                st.success(f"Simplified Ratio = {int(a/g)} : {int(b/g)}")
-
-        elif tool == "Simultaneous Equations":
-            st.header("Simple Simultaneous Equation Solver")
-            eq1 = st.text_input("Equation 1", "2x + 3y = 11")
-            eq2 = st.text_input("Equation 2", "1x - 1y = 1")
-            def parse_eq(eq):
-                numbers = list(map(int, re.findall(r'-?\d+', eq)))
-                return numbers[0], numbers[1], numbers[2]
-            if st.button("Solve Equations"):
-                try:
-                    a1,b1,c1 = parse_eq(eq1)
-                    a2,b2,c2 = parse_eq(eq2)
-                    det = a1*b2 - a2*b1
-                    if det != 0:
-                        x = (c1*b2 - c2*b1)/det
-                        y = (a1*c2 - a2*c1)/det
-                        st.success(f"Solution: x = {x}, y = {y}")
-                        # Graph
-                        x_vals = np.linspace(-10,10,400)
-                        y1 = (c1 - a1*x_vals)/b1
-                        y2 = (c2 - a2*x_vals)/b2
-                        fig,ax = plt.subplots()
-                        ax.plot(x_vals,y1,label="Equation 1")
-                        ax.plot(x_vals,y2,label="Equation 2")
-                        ax.scatter(x,y,color="red",s=100,label="Solution")
-                        ax.grid(True)
-                        ax.legend()
-                        st.pyplot(fig)
-                    else:
-                        st.error("No unique solution exists!")
-                except:
-                    st.error("Error parsing equations. Use format ax + by = c.")
-
 # -------------------------
-# TEACHER SECTION WITH SESSION PERSISTENCE
+# TEACHER SECTION
 # -------------------------
 elif user_type == "Teacher":
     st.header("Teacher Section")
-    st.write("Submit a new math topic. Requires editor approval.")
+    st.write("Login to submit new math topics. Editor approval required.")
 
-    # Show login if not logged in
-    if not st.session_state['teacher_logged_in']:
-        teacher_name = st.text_input("Username")
-        teacher_password = st.text_input("Password", type="password")
-        if st.button("Login"):
-            if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
-                st.session_state['teacher_logged_in'] = True
-                st.session_state['teacher_name'] = teacher_name
-                st.success(f"Welcome, {teacher_name}!")
-            else:
-                st.error("Invalid credentials. Please register first.")
-        if st.button("Register"):
-            if teacher_name in teacher_data:
-                st.error("Username exists. Choose another.")
-            else:
-                teacher_data[teacher_name] = teacher_password
-                with open(PASSWORD_FILE, "w") as f:
-                    json.dump(teacher_data, f)
-                st.success("Registered successfully!")
-    else:
-        st.success(f"Logged in as: {st.session_state['teacher_name']}")
+    teacher_name = st.text_input("Teacher Username")
+    teacher_password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
+            st.success("Login successful!")
 
-        # Topic submission form
-        topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Topic Description")
-        topic_code = st.text_area("Topic Code")
-        editor_password = st.text_input("Editor Approval Password", type="password")
-        if st.button("Submit Topic for Approval"):
-            if editor_password == "mercy paul i love you":  # master password
-                email_sender = "your_email_here@gmail.com"  # replace with your email
-                email_password = "aceluffy#"
+            topic_name = st.text_input("Topic Name")
+            topic_description = st.text_area("Topic Description")
+            topic_code = st.text_area("Topic Code")
+
+            if st.button("Submit Topic for Approval"):
+                # Email editor for approval
+                email_sender = "aleccleopatra7@gmail.com"      # replace with your sender email
+                email_password = "skqa pymt xkui buiu "                     # replace with your sender email password
                 recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
+
                 msg = EmailMessage()
                 msg['Subject'] = f"New Topic Submitted: {topic_name}"
                 msg['From'] = email_sender
                 msg['To'] = ", ".join(recipients)
                 msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
+
                 try:
                     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
                         smtp.login(email_sender,email_password)
                         smtp.send_message(msg)
-                    st.success("Topic submitted and emailed to editor!")
+                    st.success("Topic submitted! Editor notified via email.")
                 except Exception as e:
                     st.error(f"Failed to send email: {e}")
-            else:
-                st.error("Invalid editor password. Submission blocked.")
+        else:
+            st.error("Invalid teacher login.")
+
+# -------------------------
+# EDITOR SECTION
+# -------------------------
+elif user_type == "Editor":
+    st.header("Editor Dashboard")
+    st.write("Approve new topics submitted by teachers and push to GitHub.")
+
+    github_token = os.getenv("GITHUB_TOKEN")  # set in env variables
+    repo_name = st.text_input("GitHub repo (username/repo)")
+
+    topic_file = st.file_uploader("Upload teacher submitted topic (Python .py file)")
+    if st.button("Approve & Push"):
+        if topic_file and github_token:
+            try:
+                content = topic_file.read().decode("utf-8")
+                g = Github(github_token)
+                repo = g.get_repo(repo_name)
+                file_name = f"topics/{topic_file.name}"
+                try:
+                    existing_file = repo.get_contents(file_name)
+                    repo.update_file(existing_file.path, f"Update topic {topic_file.name}", content, existing_file.sha)
+                    st.success("Topic updated in GitHub repo!")
+                except:
+                    repo.create_file(file_name, f"Add topic {topic_file.name}", content)
+                    st.success("Topic added to GitHub repo!")
+            except Exception as e:
+                st.error(f"Error pushing to GitHub: {e}")
+        else:
+            st.error("Upload a file and ensure GITHUB_TOKEN is set.")
