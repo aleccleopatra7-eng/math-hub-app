@@ -2,78 +2,98 @@ import streamlit as st
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-import qrcode
-from PIL import Image
-
-st.title("Interactive Math Hub")
 
 # -------------------------
-# Sidebar options
+# PAGE SETTINGS
 # -------------------------
 
-st.sidebar.title("Select Tool")
+st.set_page_config(
+    page_title="Interactive Math Hub",
+    page_icon="📊",
+    layout="centered"
+)
+
+st.title("📊 Interactive Math Hub")
+st.write("An interactive platform to explore mathematical concepts visually.")
+
+# -------------------------
+# SIDEBAR
+# -------------------------
+
+st.sidebar.title("Navigation")
 
 tool = st.sidebar.selectbox(
     "Choose a Topic",
-    ("LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations")
+    ("Home", "LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations")
 )
+
+# -------------------------
+# HOME PAGE
+# -------------------------
+
+if tool == "Home":
+
+    st.header("Welcome to the Interactive Math Hub")
+
+    st.write("""
+This platform allows learners to **explore mathematics interactively**.
+
+### Available Tools
+
+• **LCM & GCD Visualizer**  
+• **Prime Factorization Explorer**  
+• **Ratio Simplifier**  
+• **Simultaneous Equation Solver**
+
+Use the sidebar to start exploring!
+""")
 
 # -------------------------
 # LCM AND GCD
 # -------------------------
 
-if tool == "LCM & GCD":
+elif tool == "LCM & GCD":
 
     st.header("LCM & GCD Visualizer")
 
-    a = st.number_input("Enter Number 1", value=6)
-    b = st.number_input("Enter Number 2", value=8)
+    st.write("""
+The **Greatest Common Divisor (GCD)** is the largest number that divides both numbers.
 
-    if st.button("Calculate"):
+The **Least Common Multiple (LCM)** is the smallest number that both numbers can multiply to reach.
+""")
 
-        gcd = math.gcd(a,b)
-        lcm = a*b//gcd
+    a = st.slider("Select Number 1", 1, 50, 6)
+    b = st.slider("Select Number 2", 1, 50, 8)
 
-        st.write("GCD =", gcd)
-        st.write("LCM =", lcm)
+    gcd = math.gcd(a, b)
+    lcm = a * b // gcd
 
-        multiples_a=[a*i for i in range(1,10)]
-        multiples_b=[b*i for i in range(1,10)]
+    st.success(f"GCD = {gcd}")
+    st.success(f"LCM = {lcm}")
 
-        factors_a=[i for i in range(1,a+1) if a%i==0]
-        factors_b=[i for i in range(1,b+1) if b%i==0]
+    st.subheader("Dynamic Number Line")
 
-        fig,ax=plt.subplots()
+    limit = max(a, b) * 8
 
-        ax.scatter(multiples_a,[3]*len(multiples_a),label="Multiples A ⭐")
-        ax.scatter(multiples_b,[4]*len(multiples_b),label="Multiples B ⭐")
+    fig, ax = plt.subplots()
 
-        ax.scatter(factors_a,[1]*len(factors_a),marker="s",label="Factors A ⬛")
-        ax.scatter(factors_b,[2]*len(factors_b),marker="s",label="Factors B ⬛")
+    ax.hlines(0, 0, limit)
 
-        ax.scatter(lcm,3.5,color="green",s=120,label="LCM")
-        ax.scatter(gcd,0.5,color="orange",s=120,label="GCD")
+    for i in range(a, limit, a):
+        ax.scatter(i, 0.1)
+        ax.text(i, 0.12, str(i), ha="center")
 
-        # Label points
-        for x in multiples_a:
-            ax.text(x,3.05,str(x),ha="center")
+    for i in range(b, limit, b):
+        ax.scatter(i, -0.1)
 
-        for x in multiples_b:
-            ax.text(x,4.05,str(x),ha="center")
+    ax.scatter(lcm, 0, s=200, label="LCM")
 
-        for x in factors_a:
-            ax.text(x,1.05,str(x),ha="center")
+    ax.set_xlim(0, limit)
+    ax.set_yticks([])
+    ax.legend()
 
-        for x in factors_b:
-            ax.text(x,2.05,str(x),ha="center")
+    st.pyplot(fig)
 
-        ax.set_yticks([0.5,1,2,3,3.5,4])
-        ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","LCM","Multiples B"])
-
-        ax.grid(True)
-        ax.legend()
-
-        st.pyplot(fig)
 # -------------------------
 # PRIME FACTORS
 # -------------------------
@@ -82,20 +102,41 @@ elif tool == "Prime Factors":
 
     st.header("Prime Factorization")
 
-    n = st.number_input("Enter Number", value=24)
+    st.write("Prime factorization breaks a number into **prime numbers multiplied together**.")
 
-    if st.button("Find Prime Factors"):
+    num = int(st.number_input("Enter a number", value=24))
 
-        factors=[]
-        d=2
-
-        while n>1:
-            while n%d==0:
+    def prime_factors(n):
+        factors = []
+        d = 2
+        while n > 1:
+            while n % d == 0:
                 factors.append(d)
-                n=n/d
-            d+=1
+                n //= d
+            d += 1
+        return factors
 
-        st.write("Prime Factors:", factors)
+    if st.button("Generate Prime Factors"):
+
+        factors = prime_factors(num)
+
+        st.success(f"Prime Factors: {factors}")
+
+        st.subheader("Factor Tree")
+
+        fig, ax = plt.subplots()
+
+        ax.text(0.5, 0.9, str(num), ha="center", fontsize=16)
+
+        y = 0.7
+        x_start = 0.3
+
+        for i, f in enumerate(factors):
+            ax.text(x_start + i * 0.15, y, str(f), ha="center")
+
+        ax.axis("off")
+
+        st.pyplot(fig)
 
 # -------------------------
 # RATIOS
@@ -105,14 +146,16 @@ elif tool == "Ratios":
 
     st.header("Ratio Simplifier")
 
-    a = st.number_input("First Number",value=4)
-    b = st.number_input("Second Number",value=8)
+    st.write("Ratios compare two quantities.")
+
+    a = st.number_input("First Number", value=4)
+    b = st.number_input("Second Number", value=8)
 
     if st.button("Simplify Ratio"):
 
-        g=math.gcd(a,b)
+        g = math.gcd(a, b)
 
-        st.write("Simplified Ratio =", int(a/g),":",int(b/g))
+        st.success(f"Simplified Ratio = {int(a/g)} : {int(b/g)}")
 
 # -------------------------
 # SIMULTANEOUS EQUATIONS
@@ -122,64 +165,73 @@ elif tool == "Simultaneous Equations":
 
     st.header("Simultaneous Equation Solver")
 
-    a1=st.number_input("a1",value=2)
-    b1=st.number_input("b1",value=3)
-    c1=st.number_input("c1",value=11)
+    st.write("Solve two equations with two unknowns.")
 
-    a2=st.number_input("a2",value=1)
-    b2=st.number_input("b2",value=-1)
-    c2=st.number_input("c2",value=1)
+    a1 = st.number_input("a1", value=2)
+    b1 = st.number_input("b1", value=3)
+    c1 = st.number_input("c1", value=11)
 
-    # Show the equations generated
+    a2 = st.number_input("a2", value=1)
+    b2 = st.number_input("b2", value=-1)
+    c2 = st.number_input("c2", value=1)
+
     st.subheader("Generated Equations")
 
     st.write(f"{a1}x + {b1}y = {c1}")
     st.write(f"{a2}x + {b2}y = {c2}")
 
-    if st.button("Solve"):
+  if st.button("Solve"):
 
-        det=a1*b2-a2*b1
+    det = a1*b2 - a2*b1
 
-        if det!=0:
+    if det != 0:
 
-            x=(c1*b2-c2*b1)/det
-            y=(a1*c2-a2*c1)/det
+        x = (c1*b2 - c2*b1) / det
+        y = (a1*c2 - a2*c1) / det
 
-            st.success(f"Solution: x = {x}, y = {y}")
+        st.success(f"Solution: x = {x}, y = {y}")
 
-            x_vals=np.linspace(-10,10,400)
+        # Generate values for table
+        x_vals = np.arange(-5, 6)
 
-            y1=(c1-a1*x_vals)/b1
-            y2=(c2-a2*x_vals)/b2
+        y1_vals = (c1 - a1*x_vals) / b1
+        y2_vals = (c2 - a2*x_vals) / b2
 
-            fig,ax=plt.subplots()
+        # -------------------------
+        # TABLE OF VALUES
+        # -------------------------
 
-            ax.plot(x_vals,y1,label=f"{a1}x + {b1}y = {c1}")
-            ax.plot(x_vals,y2,label=f"{a2}x + {b2}y = {c2}")
+        st.subheader("Table of Values")
 
-            ax.scatter(x,y,color="red",s=120)
+        table_data = {
+            "x": x_vals,
+            "y (Eq1)": y1_vals,
+            "y (Eq2)": y2_vals
+        }
 
-            ax.grid(True)
-            ax.legend()
+        st.table(table_data)
 
-            st.pyplot(fig)
+        # -------------------------
+        # GRAPH
+        # -------------------------
 
-        else:
+        x_graph = np.linspace(-10, 10, 400)
 
-            st.error("No unique solution")
+        y1 = (c1 - a1*x_graph) / b1
+        y2 = (c2 - a2*x_graph) / b2
 
-# -------------------------
-# QR CODE
-# -------------------------
+        fig, ax = plt.subplots()
 
-elif tool == "QR Code":
+        ax.plot(x_graph, y1, label=f"{a1}x + {b1}y = {c1}")
+        ax.plot(x_graph, y2, label=f"{a2}x + {b2}y = {c2}")
 
-    st.header("QR Code Generator")
+        ax.scatter(x, y, s=120)
 
-    link = st.text_input("Enter Link")
+        ax.grid(True)
+        ax.legend()
 
-    if st.button("Generate QR"):
+        st.pyplot(fig)
 
-        qr=qrcode.make(link)
+    else:
 
-        st.image(qr)
+        st.error("No unique solution")
