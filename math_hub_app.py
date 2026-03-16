@@ -19,6 +19,9 @@ st.set_page_config(
 
 st.title("📊 Interactive Math Hub")
 
+# Ensure 'topics' folder exists
+os.makedirs("topics", exist_ok=True)
+
 # -------------------------
 # SIDEBAR NAVIGATION
 # -------------------------
@@ -40,10 +43,9 @@ if section == "Learner Section":
 
     # Load additional topics from 'topics/' folder dynamically
     dynamic_topics = {}
-    if os.path.exists("topics"):
-        for f in glob.glob("topics/*.py"):
-            name = os.path.basename(f).replace("_", " ").replace(".py", "")
-            dynamic_topics[name] = f
+    for f in glob.glob("topics/*.py"):
+        name = os.path.basename(f).replace("_", " ").replace(".py", "")
+        dynamic_topics[name] = f
 
     # Combine built-in + dynamic topics
     all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
@@ -120,7 +122,6 @@ if section == "Learner Section":
             eq2 = st.text_input("Equation 2", "1x - 1y = 1")
 
             def parse_eq(eq):
-                # Extract coefficients from equation string
                 numbers = list(map(int, re.findall(r'-?\d+', eq)))
                 return numbers[0], numbers[1], numbers[2]
 
@@ -163,7 +164,7 @@ elif section == "Teacher Section":
     topic = st.text_input("Topic Name to Add/Edit")
     edit_existing = st.checkbox("Edit Existing Topic?")
 
-    if st.button("Generate/Update Topic Code"):
+    if st.button("Generate/Update Topic Code") and api_key:
         openai.api_key = api_key
         if edit_existing:
             prompt = f"""
@@ -187,17 +188,18 @@ Return only Python code as plain text.
         st.code(topic_code, language="python")
 
         # Save temporarily
-        file_path = f"{topic.replace(' ', '_')}.py"
+        os.makedirs("topics", exist_ok=True)
+        file_path = f"topics/{topic.replace(' ', '_')}.py"
         with open(file_path, "w") as f:
             f.write(topic_code)
         st.success("Topic code generated successfully!")
 
-    if st.button("Push to GitHub Repo"):
+    if st.button("Push to GitHub Repo") and github_token:
         try:
             g = Github(github_token)
             repo = g.get_repo(repo_name)
             file_name = f"topics/{topic.replace(' ', '_')}.py"
-            with open(f"{topic.replace(' ', '_')}.py", "r") as f:
+            with open(f"topics/{topic.replace(' ', '_')}.py", "r") as f:
                 content = f.read()
             # Create or update file
             try:
