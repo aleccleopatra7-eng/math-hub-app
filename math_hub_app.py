@@ -2,11 +2,20 @@ import streamlit as st
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-import openai
-from github import Github
 import os
 import glob
 import re
+
+# Optional imports for Teacher Section
+try:
+    import openai
+except ModuleNotFoundError:
+    openai = None
+
+try:
+    from github import Github
+except ModuleNotFoundError:
+    Github = None
 
 # -------------------------
 # PAGE SETTINGS
@@ -25,13 +34,6 @@ st.title("📊 Interactive Math Hub")
 os.makedirs("topics", exist_ok=True)
 
 # -------------------------
-# DEBUG INFO (optional)
-# -------------------------
-st.write("Current folder:", os.getcwd())
-st.write("Topics folder exists:", os.path.exists("topics"))
-st.write("Found dynamic topic files:", glob.glob("topics/*.py"))
-
-# -------------------------
 # SIDEBAR NAVIGATION
 # -------------------------
 st.sidebar.title("Navigation")
@@ -42,7 +44,6 @@ section = st.sidebar.selectbox("Select Section", ("Learner Section", "Teacher Se
 # -------------------------
 if section == "Learner Section":
 
-    # Default built-in topics
     default_topics = {
         "LCM & GCD": "built-in",
         "Prime Factors": "built-in",
@@ -50,25 +51,27 @@ if section == "Learner Section":
         "Simultaneous Equations": "built-in"
     }
 
-    # Load additional topics from 'topics/' folder dynamically
+    # Load dynamic topics safely
     dynamic_topics = {}
     for f in glob.glob("topics/*.py"):
         name = os.path.basename(f).replace("_", " ").replace(".py", "")
         dynamic_topics[name] = f
 
-    # Combine built-in + dynamic topics
     all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
     tool = st.sidebar.selectbox("Choose Topic", all_topics)
 
     # -------------------------
-    # EXECUTE TOPIC CODE
+    # EXECUTE TOPIC CODE SAFELY
     # -------------------------
     if tool in dynamic_topics:
         st.subheader(f"Dynamic Topic: {tool}")
         topic_file = dynamic_topics[tool]
-        with open(topic_file, "r") as f:
-            code = f.read()
-        exec(code)
+        try:
+            with open(topic_file, "r") as f:
+                code = f.read()
+            exec(code)
+        except Exception as e:
+            st.error(f"Error running dynamic topic '{tool}': {e}")
 
     else:
         # -------------------------
@@ -100,7 +103,6 @@ if section == "Learner Section":
         elif tool == "Prime Factors":
             st.header("Prime Factorization")
             num = int(st.number_input("Enter number", value=24))
-
             def prime_factors(n):
                 factors = []
                 d = 2
@@ -110,7 +112,6 @@ if section == "Learner Section":
                         n //= d
                     d += 1
                 return factors
-
             if st.button("Find Prime Factors"):
                 factors = prime_factors(num)
                 st.success(f"Prime Factors: {factors}")
@@ -126,14 +127,11 @@ if section == "Learner Section":
         elif tool == "Simultaneous Equations":
             st.header("Simple Simultaneous Equation Solver")
             st.write("Enter two equations in the form: `ax + by = c`")
-
             eq1 = st.text_input("Equation 1", "2x + 3y = 11")
             eq2 = st.text_input("Equation 2", "1x - 1y = 1")
-
             def parse_eq(eq):
                 numbers = list(map(int, re.findall(r'-?\d+', eq)))
                 return numbers[0], numbers[1], numbers[2]
-
             if st.button("Solve Equations"):
                 try:
                     a1, b1, c1 = parse_eq(eq1)
@@ -143,7 +141,6 @@ if section == "Learner Section":
                         x = (c1*b2 - c2*b1)/det
                         y = (a1*c2 - a2*c1)/det
                         st.success(f"Solution: x = {x}, y = {y}")
-
                         # Graph
                         x_vals = np.linspace(-10, 10, 400)
                         y1 = (c1 - a1*x_vals) / b1
@@ -166,6 +163,11 @@ if section == "Learner Section":
 elif section == "Teacher Section":
     st.header("Teacher AI Assistant & GitHub Publisher")
     st.write("Generate or modify math lesson code and push to GitHub.")
+    
+    if openai is None:
+        st.warning("OpenAI module not installed. Teacher AI features disabled.")
+    if Github is None:
+        st.warning("PyGithub module not installed. GitHub push disabled.")
 
     api_key = st.text_input("OpenAI API Key", type="password")
     github_token = st.text_input("GitHub Token", type="password")
@@ -173,10 +175,7 @@ elif section == "Teacher Section":
     topic = st.text_input("Topic Name to Add/Edit")
     edit_existing = st.checkbox("Edit Existing Topic?")
 
-    # -------------------------
-    # GENERATE TOPIC
-    # -------------------------
-    if st.button("Generate/Update Topic Code") and api_key:
+    if st.button("Generate/Update Topic Code") and openai:
         openai.api_key = api_key
         if edit_existing:
             prompt = f"""
@@ -194,28 +193,23 @@ Return only Python code as plain text.
             model="gpt-4o-mini",
             messages=[{"role":"user","content":prompt}]
         )
-
         topic_code = response.choices[0].message.content
         st.subheader("Generated Topic Code")
         st.code(topic_code, language="python")
 
-        # Save temporarily
+        # Save safely
         file_path = f"topics/{topic.replace(' ', '_')}.py"
         with open(file_path, "w") as f:
             f.write(topic_code)
         st.success("Topic code generated successfully!")
 
-    # -------------------------
-    # PUSH TO GITHUB
-    # -------------------------
-    if st.button("Push to GitHub Repo") and github_token:
+    if st.button("Push to GitHub Repo") and github_token and Github:
         try:
             g = Github(github_token)
             repo = g.get_repo(repo_name)
             file_name = f"topics/{topic.replace(' ', '_')}.py"
-            with open(f"topics/{topic.replace(' ', '_')}.py", "r") as f:
+            with open(file_name, "r") as f:
                 content = f.read()
-            # Create or update file
             try:
                 existing_file = repo.get_contents(file_name)
                 repo.update_file(existing_file.path, f"Update topic {topic}", content, existing_file.sha)
