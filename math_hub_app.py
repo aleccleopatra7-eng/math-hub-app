@@ -15,7 +15,7 @@ st.sidebar.title("Select Tool")
 
 tool = st.sidebar.selectbox(
     "Choose a Topic",
-    ("LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations", "QR Code")
+    ("LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations")
 )
 
 # -------------------------
