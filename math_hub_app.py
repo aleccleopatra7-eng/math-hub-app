@@ -186,7 +186,7 @@ elif user_type=="Teacher":
 # =====================================================
 elif user_type=="Editor":
     st.header("Editor Dashboard")
-    editor_pass = st.text_input("Editor Password", type="mercypaul")
+    editor_pass = st.text_input("Editor Password", type="password")
     if st.button("Login Editor"):
         if editor_pass == "mercypaul":  # CHANGE THIS
             st.session_state.editor_logged_in=True
