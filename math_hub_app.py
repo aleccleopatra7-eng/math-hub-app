@@ -10,7 +10,6 @@ from email.message import EmailMessage
 from github import Github
 import openai
 import streamlit.components.v1 as components
-import time
 
 # -------------------------
 # PAGE SETTINGS
@@ -131,57 +130,51 @@ if user_type == "Learner":
         st.write("Prime factors:", factors)
 
     # -------------------------
-    # Simultaneous Equations (Updated)
+    # Simultaneous Equations
     # -------------------------
     elif topic == "Simultaneous Equations":
-        st.header("Animated Simultaneous Equations Solver")
-        st.write("Enter coefficients for equations of the form: a*x + b*y = c")
+        st.header("Interactive Simultaneous Equation Solver & Plot")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("Equation 1")
-            a1 = st.number_input("a₁", value=2, step=1)
-            b1 = st.number_input("b₁", value=3, step=1)
-            c1 = st.number_input("c₁", value=11, step=1)
-        with col2:
-            st.subheader("Equation 2")
-            a2 = st.number_input("a₂", value=1, step=1)
-            b2 = st.number_input("b₂", value=-1, step=1)
-            c2 = st.number_input("c₂", value=1, step=1)
+        # User inputs for coefficients and constants
+        a1 = st.number_input("Enter a₁", value=2, min_value=-100, max_value=100, step=1)
+        b1 = st.number_input("Enter b₁", value=3, min_value=-100, max_value=100, step=1)
+        c1 = st.number_input("Enter c₁", value=11, min_value=-100, max_value=100, step=1)
 
-        if st.button("Animate Solution"):
+        a2 = st.number_input("Enter a₂", value=1, min_value=-100, max_value=100, step=1)
+        b2 = st.number_input("Enter b₂", value=-1, min_value=-100, max_value=100, step=1)
+        c2 = st.number_input("Enter c₂", value=1, min_value=-100, max_value=100, step=1)
+
+        # Show the equations
+        st.subheader("Your Equations")
+        st.write(f"{a1}x + {b1}y = {c1}")
+        st.write(f"{a2}x + {b2}y = {c2}")
+
+        if st.button("Solve & Plot"):
             det = a1*b2 - a2*b1
             if det == 0:
-                st.error("No unique solution (lines are parallel or identical).")
+                st.error("No unique solution exists (lines are parallel or identical)")
             else:
+                # Solve for x and y
                 x_sol = (c1*b2 - c2*b1)/det
                 y_sol = (a1*c2 - a2*c1)/det
-                st.success(f"Solution: x = {round(x_sol,2)}, y = {round(y_sol,2)}")
+                st.success(f"Solution: x = {x_sol}, y = {y_sol}")
 
-                x_vals = np.linspace(-10,10,200)
+                # Prepare line data
+                x_vals = np.linspace(-20, 20, 400)
                 y1_vals = (c1 - a1*x_vals)/b1
                 y2_vals = (c2 - a2*x_vals)/b2
 
+                # Plot
                 fig, ax = plt.subplots(figsize=(8,6))
-                ax.set_xlim(-10,10)
-                ax.set_ylim(-10,10)
+                ax.plot(x_vals, y1_vals, label=f"{a1}x + {b1}y = {c1}")
+                ax.plot(x_vals, y2_vals, label=f"{a2}x + {b2}y = {c2}")
+                ax.scatter([x_sol], [y_sol], color="red", s=100, zorder=5, label="Solution")
+                ax.grid(True)
                 ax.set_xlabel("x")
                 ax.set_ylabel("y")
-                ax.set_title("Animated Simultaneous Equations")
-                ax.grid(True)
-
-                line1, = ax.plot([], [], color="blue", label=f"{a1}x + {b1}y = {c1}")
-                line2, = ax.plot([], [], color="green", label=f"{a2}x + {b2}y = {c2}")
-                solution_dot, = ax.plot([], [], 'ro', markersize=10, label="Solution")
+                ax.set_title("Simultaneous Equations")
+                ax.legend()
                 st.pyplot(fig)
-
-                for i in range(1, len(x_vals)+1):
-                    line1.set_data(x_vals[:i], y1_vals[:i])
-                    line2.set_data(x_vals[:i], y2_vals[:i])
-                    solution_dot.set_data(x_sol, y_sol)
-                    ax.legend()
-                    st.pyplot(fig)
-                    time.sleep(0.02)
 
     # -------------------------
     # Learner-Teacher Chat
