@@ -19,8 +19,17 @@ st.set_page_config(
 
 st.title("📊 Interactive Math Hub")
 
-# Ensure 'topics' folder exists
+# -------------------------
+# ENSURE 'topics/' FOLDER EXISTS
+# -------------------------
 os.makedirs("topics", exist_ok=True)
+
+# -------------------------
+# DEBUG INFO (optional)
+# -------------------------
+st.write("Current folder:", os.getcwd())
+st.write("Topics folder exists:", os.path.exists("topics"))
+st.write("Found dynamic topic files:", glob.glob("topics/*.py"))
 
 # -------------------------
 # SIDEBAR NAVIGATION
@@ -164,6 +173,9 @@ elif section == "Teacher Section":
     topic = st.text_input("Topic Name to Add/Edit")
     edit_existing = st.checkbox("Edit Existing Topic?")
 
+    # -------------------------
+    # GENERATE TOPIC
+    # -------------------------
     if st.button("Generate/Update Topic Code") and api_key:
         openai.api_key = api_key
         if edit_existing:
@@ -188,12 +200,14 @@ Return only Python code as plain text.
         st.code(topic_code, language="python")
 
         # Save temporarily
-        os.makedirs("topics", exist_ok=True)
         file_path = f"topics/{topic.replace(' ', '_')}.py"
         with open(file_path, "w") as f:
             f.write(topic_code)
         st.success("Topic code generated successfully!")
 
+    # -------------------------
+    # PUSH TO GITHUB
+    # -------------------------
     if st.button("Push to GitHub Repo") and github_token:
         try:
             g = Github(github_token)
