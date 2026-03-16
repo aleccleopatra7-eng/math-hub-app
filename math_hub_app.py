@@ -2,13 +2,12 @@ import streamlit as st
 import math
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import os
 import glob
 import json
+from github import Github
 import openai
 import streamlit.components.v1 as components
-from github import Github
 
 # -------------------------
 # PAGE SETTINGS
@@ -28,21 +27,17 @@ os.makedirs("groups", exist_ok=True)
 # -------------------------
 # SESSION STATE
 # -------------------------
-if "teacher_logged_in" not in st.session_state:
-    st.session_state.teacher_logged_in = False
-if "teacher_name" not in st.session_state:
-    st.session_state.teacher_name = ""
-if "editor_logged_in" not in st.session_state:
-    st.session_state.editor_logged_in = False
-if "special_answer_verified" not in st.session_state:
-    st.session_state.special_answer_verified = False
+if "teacher_logged_in" not in st.session_state: st.session_state.teacher_logged_in = False
+if "teacher_name" not in st.session_state: st.session_state.teacher_name = ""
+if "editor_logged_in" not in st.session_state: st.session_state.editor_logged_in = False
+if "special_answer_verified" not in st.session_state: st.session_state.special_answer_verified = False
 
 # -------------------------
 # LOAD TEACHERS
 # -------------------------
 PASSWORD_FILE = "teachers.json"
 if os.path.exists(PASSWORD_FILE):
-    with open(PASSWORD_FILE, "r") as f:
+    with open(PASSWORD_FILE,"r") as f:
         teacher_data = json.load(f)
 else:
     teacher_data = {}
@@ -53,10 +48,9 @@ else:
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
 OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
 openai.api_key = OPENAI_API_KEY
-
-EDITOR_PASSWORD = "aceluffy"  # Editor login
-SPECIAL_QUESTION = "Who do i love?"  # Private games question
-SPECIAL_ANSWER = "riya"                  # Answer to access games
+EDITOR_PASSWORD = "aceluffy"
+SPECIAL_QUESTION = "Who is my chizi?"
+SPECIAL_ANSWER = "riya"
 
 # -------------------------
 # USER TYPE SELECTION
@@ -68,13 +62,13 @@ user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 # =====================================================
 if user_type == "Learner":
     st.header("Learner Section")
+    
+    # Topics
     default_topics = ["LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations"]
-    dynamic_topics = [os.path.basename(f).replace(".py", "").replace("_"," ") for f in glob.glob("topics/*.py")]
+    dynamic_topics = [os.path.basename(f).replace(".py","").replace("_"," ") for f in glob.glob("topics/*.py")]
     topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
-
-    # -------------------------
-    # LCM & GCD Visualizer
-    # -------------------------
+    
+    # --- LCM & GCD ---
     if topic == "LCM & GCD":
         st.subheader("LCM & GCD Visualizer")
         a = st.number_input("Number A", 1, 100, 6)
@@ -83,173 +77,158 @@ if user_type == "Learner":
         lcm = a*b//gcd
         st.success(f"GCD = {gcd}")
         st.success(f"LCM = {lcm}")
-
         factors_a = [i for i in range(1,a+1) if a%i==0]
         factors_b = [i for i in range(1,b+1) if b%i==0]
         multiples_a = [a*i for i in range(1,10)]
         multiples_b = [b*i for i in range(1,10)]
-
-        fig, ax = plt.subplots()
-        # Color-blind friendly palette
-        colors = {"factors_a":"#E69F00","factors_b":"#56B4E9","multiples_a":"#009E73","multiples_b":"#D55E00"}
-        ax.scatter(factors_a,[1]*len(factors_a), marker="s", color=colors["factors_a"], label="Factors A")
-        ax.scatter(factors_b,[2]*len(factors_b), marker="s", color=colors["factors_b"], label="Factors B")
-        ax.scatter(multiples_a,[3]*len(multiples_a), marker="o", color=colors["multiples_a"], label="Multiples A")
-        ax.scatter(multiples_b,[4]*len(multiples_b), marker="o", color=colors["multiples_b"], label="Multiples B")
-        ax.scatter(lcm,2.5,color="#009E73", s=120, label="LCM")
-        ax.scatter(gcd,0.5,color="#E69F00", s=120, label="GCD")
+        fig,ax = plt.subplots()
+        ax.scatter(factors_a,[1]*len(factors_a), marker="s", color="orange", label="Factors A")
+        ax.scatter(factors_b,[2]*len(factors_b), marker="s", color="blue", label="Factors B")
+        ax.scatter(multiples_a,[3]*len(multiples_a), marker="o", color="green", label="Multiples A")
+        ax.scatter(multiples_b,[4]*len(multiples_b), marker="o", color="red", label="Multiples B")
+        ax.scatter(lcm,3.5,color="green",s=120,label="LCM")
+        ax.scatter(gcd,0.5,color="orange",s=120,label="GCD")
         for x in factors_a: ax.text(x,1.05,str(x),ha="center")
         for x in factors_b: ax.text(x,2.05,str(x),ha="center")
         for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
         for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
-        ax.set_yticks([0.5,1,2,2.5,3,4])
-        ax.set_yticklabels(["GCD","Factors A","Factors B","LCM","Multiples A","Multiples B"])
+        ax.set_yticks([0.5,1,2,3,3.5,4])
+        ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","LCM","Multiples B"])
         ax.grid(True)
         ax.legend()
         st.pyplot(fig)
 
-    # -------------------------
-    # Prime Factors
-    # -------------------------
-    elif topic=="Prime Factors":
-        st.header("Prime Factorization")
-        n = st.number_input("Enter Number",2,1000,24)
-        if st.button("Find Prime Factors"):
-            factors=[]
-            temp=n
-            for i in range(2,temp+1):
-                while temp%i==0:
-                    factors.append(i)
-                    temp=temp//i
-            st.write("Prime factors:", factors)
-
-    # -------------------------
-    # Ratios
-    # -------------------------
-    elif topic=="Ratios":
-        st.header("Ratio Simplifier")
+    # --- Ratios ---
+    elif topic == "Ratios":
+        st.header("Ratios")
         a = st.number_input("Value A",1,100,4)
         b = st.number_input("Value B",1,100,6)
-        if st.button("Simplify Ratio"):
-            g = math.gcd(a,b)
-            st.write("Simplified Ratio:", f"{a//g}:{b//g}")
+        st.write(f"The ratio A:B is {a}:{b}")
 
-    # -------------------------
-    # Simultaneous Equations Solver
-    # -------------------------
-    elif topic=="Simultaneous Equations":
-        st.header("2x2 Simultaneous Equations Solver")
-        a1 = st.number_input("a1", -50, 50, 2)
-        b1 = st.number_input("b1", -50, 50, 3)
-        c1 = st.number_input("c1", -100, 100, 11)
-        a2 = st.number_input("a2", -50, 50, 1)
-        b2 = st.number_input("b2", -50, 50, -1)
-        c2 = st.number_input("c2", -100, 100, 1)
+    # --- Prime Factors ---
+    elif topic == "Prime Factors":
+        st.header("Prime Factors")
+        n = st.number_input("Enter a number",2,100,12)
+        factors=[]
+        temp=n
+        for i in range(2,temp+1):
+            while temp%i==0:
+                factors.append(i)
+                temp//=i
+        st.write("Prime factors:", factors)
 
-        if st.button("Solve and Animate"):
+    # --- Simultaneous Equations ---
+    elif topic == "Simultaneous Equations":
+        st.header("Simultaneous Equation Solver")
+        a1 = st.number_input("a1", value=2)
+        b1 = st.number_input("b1", value=3)
+        c1 = st.number_input("c1", value=11)
+        a2 = st.number_input("a2", value=1)
+        b2 = st.number_input("b2", value=-1)
+        c2 = st.number_input("c2", value=1)
+        if st.button("Solve Equations"):
             det = a1*b2 - a2*b1
-            if det==0:
-                st.error("No unique solution exists")
-            else:
-                x_sol = (c1*b2 - c2*b1)/det
-                y_sol = (a1*c2 - a2*c1)/det
-                st.success(f"Solution: x = {x_sol}, y = {y_sol}")
-
-                x_vals = np.linspace(-20,20,400)
+            if det !=0:
+                x = (c1*b2 - c2*b1)/det
+                y = (a1*c2 - a2*c1)/det
+                st.success(f"Solution: x = {x}, y = {y}")
+                # Plot lines
+                x_vals = np.linspace(-10,10,400)
                 y1_vals = (c1 - a1*x_vals)/b1
                 y2_vals = (c2 - a2*x_vals)/b2
-                fig,ax=plt.subplots(figsize=(7,6))
-                ax.plot(x_vals,y1_vals, label=f"{a1}x + {b1}y = {c1}", color="#0072B2")
-                ax.plot(x_vals,y2_vals, label=f"{a2}x + {b2}y = {c2}", color="#D55E00")
-                ax.scatter(x_sol,y_sol,color="red",s=100,label="Intersection")
+                fig,ax = plt.subplots()
+                ax.plot(x_vals,y1_vals,label=f"{a1}x + {b1}y = {c1}")
+                ax.plot(x_vals,y2_vals,label=f"{a2}x + {b2}y = {c2}")
+                ax.scatter(x,y,color="red",s=120)
                 ax.grid(True)
                 ax.legend()
                 st.pyplot(fig)
+            else:
+                st.error("No unique solution (lines may be parallel)")
 
-    # -------------------------
-    # Learner Group Chat
-    # -------------------------
-    st.subheader("Groups")
-    group_name = st.text_input("Enter your group name to join/create")
+    # --- Learner-Teacher / Group Chat ---
+    st.subheader("Chat with Teacher / Group")
     learner_name = st.text_input("Your Name")
-    if group_name and learner_name:
-        chat_file = f"groups/group_{group_name}.json"
-        if os.path.exists(chat_file):
-            with open(chat_file) as f:
-                chat_history = json.load(f)
-        else:
-            chat_history=[]
-        new_message = st.text_input("Type your message")
-        if st.button("Send to Group"):
-            if new_message.strip():
-                chat_history.append({"sender":learner_name,"message":new_message})
-                with open(chat_file,"w") as f:
-                    json.dump(chat_history,f)
-                st.experimental_rerun()
-        st.write(f"Messages in {group_name}:")
-        for msg in chat_history:
-            st.write(f"{msg['sender']}: {msg['message']}")
+    teacher_code = st.text_input("Enter Teacher Code")
+    group_name = st.text_input("Enter Group Name (optional)")
+    chat_file = f"messages/{teacher_code}_{group_name}.json" if group_name else f"messages/{teacher_code}.json"
+    if os.path.exists(chat_file):
+        with open(chat_file,"r") as f:
+            chat_history = json.load(f)
+    else:
+        chat_history = []
 
-# =====================================================
+    new_message = st.text_input("Type your message")
+    if st.button("Send Message"):
+        if learner_name.strip() and new_message.strip():
+            chat_history.append({"sender": learner_name,"message":new_message})
+            with open(chat_file,"w") as f:
+                json.dump(chat_history,f)
+            st.experimental_rerun()
+
+    st.write("Messages:")
+    for msg in chat_history:
+        st.write(f"{msg['sender']}: {msg['message']}")
+        # =====================================================
 # TEACHER SECTION
 # =====================================================
-elif user_type=="Teacher":
+elif user_type == "Teacher":
     st.header("Teacher Portal")
     username = st.text_input("Username")
-    password = st.text_input("Password",type="password")
-    teacher_number = st.text_input("Your Number Tag")
-    if st.button("Register/Login"):
+    password = st.text_input("Password", type="password")
+    teacher_code = st.text_input("Your Teacher Code (used for groups)")
+
+    if st.button("Register / Login"):
         if username not in teacher_data:
-            teacher_data[username]=password
+            teacher_data[username] = password
             with open(PASSWORD_FILE,"w") as f:
                 json.dump(teacher_data,f)
-            st.success("Registered")
-            st.session_state.teacher_logged_in=True
-            st.session_state.teacher_name=username
+            st.success("Registered successfully")
+            st.session_state.teacher_logged_in = True
+            st.session_state.teacher_name = username
         elif teacher_data[username]==password:
             st.success("Login successful")
-            st.session_state.teacher_logged_in=True
-            st.session_state.teacher_name=username
+            st.session_state.teacher_logged_in = True
+            st.session_state.teacher_name = username
         else:
             st.error("Wrong password")
 
     if st.session_state.teacher_logged_in:
-        st.subheader("Submit Topic Description")
-        topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Topic Description")
-        if st.button("Submit Description"):
-            submission = {"teacher":st.session_state.teacher_name,
-                          "topic_number":teacher_number,
-                          "topic_name":topic_name,
-                          "topic_description":topic_description}
-            filename=f"submissions/{topic_name.replace(' ','_')}.json"
-            with open(filename,"w") as f:
-                json.dump(submission,f)
-            st.success("Submitted for editor approval!")
+        st.subheader("Create / Manage Groups")
+        group_name = st.text_input("Group Name")
+        if st.button("Create Group"):
+            if group_name.strip() and teacher_code.strip():
+                group_file = f"groups/{teacher_code}_{group_name}.json"
+                if not os.path.exists(group_file):
+                    with open(group_file,"w") as f:
+                        json.dump({"teacher": username, "members": [], "messages":[]},f)
+                    st.success(f"Group '{group_name}' created with code '{teacher_code}'")
+                else:
+                    st.warning("Group already exists")
 
-        # -------- Teacher Group Chat --------
-        st.subheader("Group Chats with Learners")
-        groups_list = [f.replace(".json","").replace("group_","") for f in glob.glob("groups/group_*.json")]
-        selected_group = st.selectbox("Select a group", ["--Select Group--"] + groups_list)
-        if selected_group!="--Select Group--":
-            chat_file = f"groups/group_{selected_group}.json"
-            if os.path.exists(chat_file):
-                with open(chat_file) as f:
-                    chat_history = json.load(f)
-            else:
-                chat_history=[]
-            st.write(f"Group Chat: {selected_group}")
-            for msg in chat_history:
-                st.write(f"{msg['sender']}: {msg['message']}")
-            teacher_message = st.text_input("Your reply to the group")
-            if st.button("Send to Group"):
-                if teacher_message.strip():
-                    chat_history.append({"sender":f"Teacher {st.session_state.teacher_name}","message":teacher_message})
-                    with open(chat_file,"w") as f:
-                        json.dump(chat_history,f)
-                    st.success("Message sent!")
-                    st.experimental_rerun()
-                    # =====================================================
+        # Chat with learners in a group
+        st.subheader("Group Chat")
+        chat_group_name = st.text_input("Select Group for Chat")
+        chat_file = f"groups/{teacher_code}_{chat_group_name}.json"
+        if os.path.exists(chat_file):
+            with open(chat_file,"r") as f:
+                group_data = json.load(f)
+        else:
+            group_data = {"teacher": username, "members": [], "messages":[]}
+
+        new_msg = st.text_input("Type your message to the group")
+        if st.button("Send to Group"):
+            if new_msg.strip():
+                group_data["messages"].append({"sender": username, "message": new_msg})
+                with open(chat_file,"w") as f:
+                    json.dump(group_data,f)
+                st.experimental_rerun()
+
+        st.write("Group Messages:")
+        for msg in group_data.get("messages",[]):
+            st.write(f"{msg['sender']}: {msg['message']}")
+
+# =====================================================
 # EDITOR SECTION
 # =====================================================
 elif user_type == "Editor":
@@ -309,7 +288,7 @@ elif user_type == "Editor":
                         st.error(f"GitHub Error: {e}")
 
         # -------------------------
-        # PRIVATE GAMES SECTION
+        # PRIVATE MINI-GAMES
         # -------------------------
         st.subheader("Private Mini-Games")
         if not st.session_state.special_answer_verified:
@@ -329,7 +308,6 @@ elif user_type == "Editor":
             st.markdown(f"[Play GTA-style Game]({gta_url})")
             components.iframe(gta_url, width=1000, height=600)
 
-            # Add more games here
             st.markdown("Other mini-games coming soon!")
 
     else:
