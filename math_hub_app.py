@@ -44,23 +44,15 @@ This platform allows learners to **explore mathematics interactively**.
 • **Prime Factorization Explorer**  
 • **Ratio Simplifier**  
 • **Simultaneous Equation Solver**
-
-Use the sidebar to start exploring!
 """)
 
 # -------------------------
-# LCM AND GCD
+# LCM & GCD
 # -------------------------
 
 elif tool == "LCM & GCD":
 
     st.header("LCM & GCD Visualizer")
-
-    st.write("""
-The **Greatest Common Divisor (GCD)** is the largest number that divides both numbers.
-
-The **Least Common Multiple (LCM)** is the smallest number that both numbers can multiply to reach.
-""")
 
     a = st.slider("Select Number 1", 1, 50, 6)
     b = st.slider("Select Number 2", 1, 50, 8)
@@ -102,8 +94,6 @@ elif tool == "Prime Factors":
 
     st.header("Prime Factorization")
 
-    st.write("Prime factorization breaks a number into **prime numbers multiplied together**.")
-
     num = int(st.number_input("Enter a number", value=24))
 
     def prime_factors(n):
@@ -121,8 +111,6 @@ elif tool == "Prime Factors":
         factors = prime_factors(num)
 
         st.success(f"Prime Factors: {factors}")
-
-        st.subheader("Factor Tree")
 
         fig, ax = plt.subplots()
 
@@ -146,8 +134,6 @@ elif tool == "Ratios":
 
     st.header("Ratio Simplifier")
 
-    st.write("Ratios compare two quantities.")
-
     a = st.number_input("First Number", value=4)
     b = st.number_input("Second Number", value=8)
 
@@ -165,73 +151,107 @@ elif tool == "Simultaneous Equations":
 
     st.header("Simultaneous Equation Solver")
 
-    st.write("Solve two equations with two unknowns.")
+    st.write("Solve the system of equations:")
 
-    a1 = st.number_input("a1", value=2)
-    b1 = st.number_input("b1", value=3)
-    c1 = st.number_input("c1", value=11)
+    a1 = st.number_input("a₁", value=2)
+    b1 = st.number_input("b₁", value=3)
+    c1 = st.number_input("c₁", value=11)
 
-    a2 = st.number_input("a2", value=1)
-    b2 = st.number_input("b2", value=-1)
-    c2 = st.number_input("c2", value=1)
+    a2 = st.number_input("a₂", value=1)
+    b2 = st.number_input("b₂", value=-1)
+    c2 = st.number_input("c₂", value=1)
 
-    st.subheader("Generated Equations")
+    st.subheader("Equations")
 
     st.write(f"{a1}x + {b1}y = {c1}")
     st.write(f"{a2}x + {b2}y = {c2}")
 
-  if st.button("Solve"):
+    if st.button("Solve"):
 
-    det = a1*b2 - a2*b1
+        # determinant
+        det = a1*b2 - a2*b1
 
-    if det != 0:
+        if det != 0:
 
-        x = (c1*b2 - c2*b1) / det
-        y = (a1*c2 - a2*c1) / det
+            x = (c1*b2 - c2*b1) / det
+            y = (a1*c2 - a2*c1) / det
 
-        st.success(f"Solution: x = {x}, y = {y}")
+            st.success(f"Solution: x = {x}, y = {y}")
 
-        # Generate values for table
-        x_vals = np.arange(-5, 6)
+            # -------------------------
+            # STEP BY STEP SOLUTION
+            # -------------------------
 
-        y1_vals = (c1 - a1*x_vals) / b1
-        y2_vals = (c2 - a2*x_vals) / b2
+            st.subheader("Step-by-Step Solution (Determinant Method)")
 
-        # -------------------------
-        # TABLE OF VALUES
-        # -------------------------
+            st.write(f"Step 1: Calculate determinant")
 
-        st.subheader("Table of Values")
+            st.latex(f"D = a_1 b_2 - a_2 b_1")
+            st.latex(f"D = ({a1})({b2}) - ({a2})({b1})")
+            st.latex(f"D = {det}")
 
-        table_data = {
-            "x": x_vals,
-            "y (Eq1)": y1_vals,
-            "y (Eq2)": y2_vals
-        }
+            st.write("Step 2: Solve for x")
 
-        st.table(table_data)
+            Dx = c1*b2 - c2*b1
 
-        # -------------------------
-        # GRAPH
-        # -------------------------
+            st.latex(f"D_x = c_1 b_2 - c_2 b_1")
+            st.latex(f"D_x = ({c1})({b2}) - ({c2})({b1})")
+            st.latex(f"D_x = {Dx}")
 
-        x_graph = np.linspace(-10, 10, 400)
+            st.latex(f"x = D_x / D = {Dx}/{det} = {x}")
 
-        y1 = (c1 - a1*x_graph) / b1
-        y2 = (c2 - a2*x_graph) / b2
+            st.write("Step 3: Solve for y")
 
-        fig, ax = plt.subplots()
+            Dy = a1*c2 - a2*c1
 
-        ax.plot(x_graph, y1, label=f"{a1}x + {b1}y = {c1}")
-        ax.plot(x_graph, y2, label=f"{a2}x + {b2}y = {c2}")
+            st.latex(f"D_y = a_1 c_2 - a_2 c_1")
+            st.latex(f"D_y = ({a1})({c2}) - ({a2})({c1})")
+            st.latex(f"D_y = {Dy}")
 
-        ax.scatter(x, y, s=120)
+            st.latex(f"y = D_y / D = {Dy}/{det} = {y}")
 
-        ax.grid(True)
-        ax.legend()
+            # -------------------------
+            # TABLE OF VALUES
+            # -------------------------
 
-        st.pyplot(fig)
+            st.subheader("Table of Values")
 
-    else:
+            x_vals = np.arange(-5, 6)
 
-        st.error("No unique solution")
+            y1_vals = (c1 - a1*x_vals) / b1
+            y2_vals = (c2 - a2*x_vals) / b2
+
+            table = {
+                "x": x_vals,
+                "y (Eq1)": y1_vals,
+                "y (Eq2)": y2_vals
+            }
+
+            st.table(table)
+
+            # -------------------------
+            # GRAPH
+            # -------------------------
+
+            st.subheader("Graphical Solution")
+
+            x_graph = np.linspace(-10, 10, 400)
+
+            y1 = (c1 - a1*x_graph) / b1
+            y2 = (c2 - a2*x_graph) / b2
+
+            fig, ax = plt.subplots()
+
+            ax.plot(x_graph, y1, label=f"{a1}x + {b1}y = {c1}")
+            ax.plot(x_graph, y2, label=f"{a2}x + {b2}y = {c2}")
+
+            ax.scatter(x, y, s=120, label="Intersection")
+
+            ax.grid(True)
+            ax.legend()
+
+            st.pyplot(fig)
+
+        else:
+
+            st.error("No unique solution")
