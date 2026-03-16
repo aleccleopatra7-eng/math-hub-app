@@ -5,17 +5,9 @@ import matplotlib.pyplot as plt
 import os
 import glob
 import re
-
-# Optional imports for Teacher Section
-try:
-    import openai
-except ModuleNotFoundError:
-    openai = None
-
-try:
-    from github import Github
-except ModuleNotFoundError:
-    Github = None
+import smtplib
+from email.message import EmailMessage
+import json
 
 # -------------------------
 # PAGE SETTINGS
@@ -29,21 +21,28 @@ st.set_page_config(
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
-# ENSURE 'topics/' FOLDER EXISTS
+# PASSWORD STORAGE FILE
 # -------------------------
-os.makedirs("topics", exist_ok=True)
+PASSWORD_FILE = "teachers.json"
+if os.path.exists(PASSWORD_FILE):
+    with open(PASSWORD_FILE, "r") as f:
+        teacher_data = json.load(f)
+else:
+    teacher_data = {}
 
 # -------------------------
-# SIDEBAR NAVIGATION
+# USER TYPE SELECTION
 # -------------------------
-st.sidebar.title("Navigation")
-section = st.sidebar.selectbox("Select Section", ("Learner Section", "Teacher Section"))
+user_type = st.radio("I am a:", ["Learner", "Teacher"])
 
 # -------------------------
 # LEARNER SECTION
 # -------------------------
-if section == "Learner Section":
+if user_type == "Learner":
+    st.header("Learner Section")
+    st.write("Welcome! Choose a topic from the sidebar to explore.")
 
+    # Built-in topics
     default_topics = {
         "LCM & GCD": "built-in",
         "Prime Factors": "built-in",
@@ -51,52 +50,64 @@ if section == "Learner Section":
         "Simultaneous Equations": "built-in"
     }
 
-    # Load dynamic topics safely
+    # Load dynamic topics
     dynamic_topics = {}
-    for f in glob.glob("topics/*.py"):
-        name = os.path.basename(f).replace("_", " ").replace(".py", "")
-        dynamic_topics[name] = f
+    if os.path.exists("topics"):
+        for f in glob.glob("topics/*.py"):
+            name = os.path.basename(f).replace("_", " ").replace(".py", "")
+            dynamic_topics[name] = f
 
     all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
     tool = st.sidebar.selectbox("Choose Topic", all_topics)
 
-    # -------------------------
-    # EXECUTE TOPIC CODE SAFELY
-    # -------------------------
+    # Execute topic code
     if tool in dynamic_topics:
         st.subheader(f"Dynamic Topic: {tool}")
         topic_file = dynamic_topics[tool]
-        try:
-            with open(topic_file, "r") as f:
-                code = f.read()
-            exec(code)
-        except Exception as e:
-            st.error(f"Error running dynamic topic '{tool}': {e}")
+        with open(topic_file, "r") as f:
+            code = f.read()
+        exec(code)
 
     else:
-        # -------------------------
         # BUILT-IN TOPICS
-        # -------------------------
         if tool == "LCM & GCD":
             st.header("LCM & GCD Visualizer")
-            a = st.slider("Select Number 1", 1, 50, 6)
-            b = st.slider("Select Number 2", 1, 50, 8)
+            a = st.number_input("Number 1", 1, 50, 6)
+            b = st.number_input("Number 2", 1, 50, 8)
             gcd = math.gcd(a, b)
             lcm = a * b // gcd
             st.success(f"GCD = {gcd}")
             st.success(f"LCM = {lcm}")
 
-            limit = max(a, b) * 8
+            st.subheader("Factors & Multiples")
+            factors_a = [i for i in range(1, a+1) if a % i == 0]
+            factors_b = [i for i in range(1, b+1) if b % i == 0]
+            multiples_a = [a*i for i in range(1, 10)]
+            multiples_b = [b*i for i in range(1, 10)]
+
+            colorblind = st.checkbox("Enable color-blind friendly mode")
+
             fig, ax = plt.subplots()
-            ax.hlines(0, 0, limit)
-            for i in range(a, limit, a):
-                ax.scatter(i, 0.1)
-                ax.text(i, 0.12, str(i), ha="center")
-            for i in range(b, limit, b):
-                ax.scatter(i, -0.1)
-            ax.scatter(lcm, 0, s=200, label="LCM")
-            ax.set_xlim(0, limit)
-            ax.set_yticks([])
+            y_positions = [1,2,3,4]
+            ax.scatter(factors_a, [y_positions[0]]*len(factors_a),
+                       marker="s", color="orange" if not colorblind else "black", label="Factors A")
+            ax.scatter(factors_b, [y_positions[1]]*len(factors_b),
+                       marker="s", color="blue" if not colorblind else "gray", label="Factors B")
+            ax.scatter(multiples_a, [y_positions[2]]*len(multiples_a),
+                       marker="o", color="green" if not colorblind else "purple", label="Multiples A")
+            ax.scatter(multiples_b, [y_positions[3]]*len(multiples_b),
+                       marker="o", color="red" if not colorblind else "brown", label="Multiples B")
+            ax.scatter(lcm, 2.5, color="green" if not colorblind else "purple", s=120, label="LCM")
+            ax.scatter(gcd, 0.5, color="orange" if not colorblind else "black", s=120, label="GCD")
+
+            for x in factors_a: ax.text(x,1.05,str(x),ha="center")
+            for x in factors_b: ax.text(x,2.05,str(x),ha="center")
+            for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
+            for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
+
+            ax.set_yticks([0.5,1,2,3,4,2.5])
+            ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
+            ax.grid(True)
             ax.legend()
             st.pyplot(fig)
 
@@ -120,13 +131,12 @@ if section == "Learner Section":
             st.header("Ratio Simplifier")
             a = st.number_input("First Number", value=4)
             b = st.number_input("Second Number", value=8)
-            if st.button("Simplify"):
-                g = math.gcd(a, b)
+            if st.button("Simplify Ratio"):
+                g = math.gcd(a,b)
                 st.success(f"Simplified Ratio = {int(a/g)} : {int(b/g)}")
 
         elif tool == "Simultaneous Equations":
             st.header("Simple Simultaneous Equation Solver")
-            st.write("Enter two equations in the form: `ax + by = c`")
             eq1 = st.text_input("Equation 1", "2x + 3y = 11")
             eq2 = st.text_input("Equation 2", "1x - 1y = 1")
             def parse_eq(eq):
@@ -134,88 +144,77 @@ if section == "Learner Section":
                 return numbers[0], numbers[1], numbers[2]
             if st.button("Solve Equations"):
                 try:
-                    a1, b1, c1 = parse_eq(eq1)
-                    a2, b2, c2 = parse_eq(eq2)
+                    a1,b1,c1 = parse_eq(eq1)
+                    a2,b2,c2 = parse_eq(eq2)
                     det = a1*b2 - a2*b1
                     if det != 0:
                         x = (c1*b2 - c2*b1)/det
                         y = (a1*c2 - a2*c1)/det
                         st.success(f"Solution: x = {x}, y = {y}")
                         # Graph
-                        x_vals = np.linspace(-10, 10, 400)
-                        y1 = (c1 - a1*x_vals) / b1
-                        y2 = (c2 - a2*x_vals) / b2
-                        fig, ax = plt.subplots()
-                        ax.plot(x_vals, y1, label="Equation 1")
-                        ax.plot(x_vals, y2, label="Equation 2")
-                        ax.scatter(x, y, color="red", s=100, label="Solution")
+                        x_vals = np.linspace(-10,10,400)
+                        y1 = (c1 - a1*x_vals)/b1
+                        y2 = (c2 - a2*x_vals)/b2
+                        fig,ax = plt.subplots()
+                        ax.plot(x_vals,y1,label="Equation 1")
+                        ax.plot(x_vals,y2,label="Equation 2")
+                        ax.scatter(x,y,color="red",s=100,label="Solution")
                         ax.grid(True)
                         ax.legend()
                         st.pyplot(fig)
                     else:
                         st.error("No unique solution exists!")
-                except Exception as e:
-                    st.error("Error parsing equations. Make sure format is correct: `ax + by = c`")
+                except:
+                    st.error("Error parsing equations. Use format ax + by = c.")
 
 # -------------------------
-# TEACHER SECTION
+# TEACHER SECTION WITH EDITOR APPROVAL
 # -------------------------
-elif section == "Teacher Section":
-    st.header("Teacher AI Assistant & GitHub Publisher")
-    st.write("Generate or modify math lesson code and push to GitHub.")
-    
-    if openai is None:
-        st.warning("OpenAI module not installed. Teacher AI features disabled.")
-    if Github is None:
-        st.warning("PyGithub module not installed. GitHub push disabled.")
+elif user_type == "Teacher":
+    st.header("Teacher Section")
+    st.write("Submit a new math topic. Requires editor approval.")
 
-    api_key = st.text_input("OpenAI API Key", type="password")
-    github_token = st.text_input("GitHub Token", type="password")
-    repo_name = st.text_input("GitHub Repo (username/repo)")
-    topic = st.text_input("Topic Name to Add/Edit")
-    edit_existing = st.checkbox("Edit Existing Topic?")
+    # Teacher login / registration
+    action = st.radio("Login or Register", ["Login", "Register"])
+    teacher_name = st.text_input("Teacher Username")
+    teacher_password = st.text_input("Password", type="password")
 
-    if st.button("Generate/Update Topic Code") and openai:
-        openai.api_key = api_key
-        if edit_existing:
-            prompt = f"""
-You are an AI assistant. Update the existing Streamlit code for the math topic '{topic}'.
-Keep the interactive features, improve explanations, examples, or visualization as needed.
-Return the Python code as plain text.
-"""
+    if action == "Register" and st.button("Register"):
+        if teacher_name in teacher_data:
+            st.error("Username exists. Choose another.")
         else:
-            prompt = f"""
-You are an AI assistant. Create a new Streamlit Python code for a math topic called '{topic}'.
-Include header, interactive explanation, example input/output, and optional visualization.
-Return only Python code as plain text.
-"""
-        response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[{"role":"user","content":prompt}]
-        )
-        topic_code = response.choices[0].message.content
-        st.subheader("Generated Topic Code")
-        st.code(topic_code, language="python")
+            teacher_data[teacher_name] = teacher_password
+            with open(PASSWORD_FILE, "w") as f:
+                json.dump(teacher_data, f)
+            st.success("Registered successfully!")
 
-        # Save safely
-        file_path = f"topics/{topic.replace(' ', '_')}.py"
-        with open(file_path, "w") as f:
-            f.write(topic_code)
-        st.success("Topic code generated successfully!")
+    elif action == "Login" and st.button("Login"):
+        if teacher_name in teacher_data and teacher_data[teacher_name] == teacher_password:
+            st.success("Login successful! Submit topics below.")
 
-    if st.button("Push to GitHub Repo") and github_token and Github:
-        try:
-            g = Github(github_token)
-            repo = g.get_repo(repo_name)
-            file_name = f"topics/{topic.replace(' ', '_')}.py"
-            with open(file_name, "r") as f:
-                content = f.read()
-            try:
-                existing_file = repo.get_contents(file_name)
-                repo.update_file(existing_file.path, f"Update topic {topic}", content, existing_file.sha)
-                st.success(f"Updated existing topic '{topic}' in GitHub repo!")
-            except:
-                repo.create_file(file_name, f"Add new topic {topic}", content)
-                st.success(f"Added new topic '{topic}' to GitHub repo!")
-        except Exception as e:
-            st.error(f"Error pushing to GitHub: {e}")
+            topic_name = st.text_input("Topic Name")
+            topic_description = st.text_area("Topic Description")
+            topic_code = st.text_area("Topic Code")
+
+            editor_password = st.text_input("Editor Approval Password", type="password")
+            if st.button("Submit Topic for Approval"):
+                if editor_password == "mercy paul i love you":  # Your master password
+                    recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
+
+                    msg = EmailMessage()
+                    msg['Subject'] = f"New Topic Submitted: {topic_name}"
+                    msg['From'] = "aleccleopatra7@gmail.com"
+                    msg['To'] = ", ".join(recipients)
+                    msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
+
+                    try:
+                        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
+                            smtp.login("aleccleopatra7@gmail.com","aceluffy#")
+                            smtp.send_message(msg)
+                        st.success("Topic submitted and emailed to editor!")
+                    except Exception as e:
+                        st.error(f"Failed to send email: {e}")
+                else:
+                    st.error("Invalid editor password. Submission blocked.")
+        else:
+            st.error("Invalid teacher login.")
