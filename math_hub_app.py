@@ -7,6 +7,7 @@ import glob
 import json
 from email.message import EmailMessage
 import smtplib
+from github import Github
 import openai
 
 # -------------------------
@@ -21,7 +22,7 @@ st.title("📊 Interactive Math Hub")
 os.makedirs("topics", exist_ok=True)
 os.makedirs("submissions", exist_ok=True)
 os.makedirs("approved", exist_ok=True)
-os.makedirs("chat", exist_ok=True)
+os.makedirs("chats", exist_ok=True)
 
 # -------------------------
 # SESSION STATE
@@ -30,6 +31,8 @@ if "teacher_logged_in" not in st.session_state:
     st.session_state.teacher_logged_in = False
 if "teacher_name" not in st.session_state:
     st.session_state.teacher_name = ""
+if "learner_name" not in st.session_state:
+    st.session_state.learner_name = ""
 
 # -------------------------
 # PASSWORD FILE
@@ -51,31 +54,37 @@ user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 # =====================================================
 if user_type == "Learner":
     st.header("Learner Section")
-    st.write("Choose a topic from the sidebar to explore.")
+    st.write("Enter your name:")
+    learner_name = st.text_input("Your Name")
+    if learner_name:
+        st.session_state.learner_name = learner_name
 
     default_topics = ["LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations"]
-
-    dynamic_topics = []
-    for file in glob.glob("topics/*.py"):
-        name = os.path.basename(file).replace(".py","").replace("_"," ")
-        dynamic_topics.append(name)
+    dynamic_topics = [os.path.basename(f).replace(".py","").replace("_"," ") for f in glob.glob("topics/*.py")]
 
     topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
 
+    # ===== LCM & GCD =====
     if topic == "LCM & GCD":
         st.subheader("LCM & GCD Visualizer")
-        a = st.number_input("Number A", 1, 50, 6)
-        b = st.number_input("Number B", 1, 50, 8)
+        a = st.number_input("Number A", 1, 100, 6)
+        b = st.number_input("Number B", 1, 100, 8)
 
-        gcd = math.gcd(a,b)
-        lcm = a*b//gcd
+        gcd = math.gcd(a, b)
+        lcm = a * b // gcd
+
         st.success(f"GCD = {gcd}")
         st.success(f"LCM = {lcm}")
 
-        factors_a = [i for i in range(1,a+1) if a%i==0]
-        factors_b = [i for i in range(1,b+1) if b%i==0]
+        factors_a = [i for i in range(1, a+1) if a % i == 0]
+        factors_b = [i for i in range(1, b+1) if b % i == 0]
         multiples_a = [a*i for i in range(1,10)]
         multiples_b = [b*i for i in range(1,10)]
+
+        st.write("Factors A:", factors_a)
+        st.write("Factors B:", factors_b)
+        st.write("Multiples A:", multiples_a)
+        st.write("Multiples B:", multiples_b)
 
         fig, ax = plt.subplots()
         y_positions = [1,2,3,4]
@@ -83,84 +92,43 @@ if user_type == "Learner":
         ax.scatter(factors_b,[y_positions[1]]*len(factors_b), marker="s", color="blue", label="Factors B")
         ax.scatter(multiples_a,[y_positions[2]]*len(multiples_a), marker="o", color="green", label="Multiples A")
         ax.scatter(multiples_b,[y_positions[3]]*len(multiples_b), marker="o", color="red", label="Multiples B")
-        ax.scatter(lcm,2.5, s=150, color="green", label="LCM")
-        ax.scatter(gcd,0.5, s=150, color="orange", label="GCD")
-        for x in factors_a: ax.text(x,1.05,str(x),ha="center")
-        for x in factors_b: ax.text(x,2.05,str(x),ha="center")
-        for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
-        for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
+        ax.scatter(lcm, 2.5, color="green", s=120, label="LCM")
+        ax.scatter(gcd, 0.5, color="orange", s=120, label="GCD")
         ax.set_yticks([0.5,1,2,3,4,2.5])
         ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
         ax.grid(True)
         ax.legend()
         st.pyplot(fig)
 
-    elif topic == "Prime Factors":
-        st.header("Prime Factorization")
-        num = st.number_input("Enter a number", value=24)
-        def prime_factors(n):
-            factors = []
-            d = 2
-            while n>1:
-                while n%d==0:
-                    factors.append(d)
-                    n//=d
-                d+=1
-            return factors
-        if st.button("Find Prime Factors"):
-            factors = prime_factors(num)
-            st.success(f"Prime Factors: {factors}")
-
-    elif topic == "Ratios":
-        st.header("Ratio Simplifier")
-        a = st.number_input("First number", value=4)
-        b = st.number_input("Second number", value=8)
-        if st.button("Simplify Ratio"):
-            g = math.gcd(a,b)
-            st.success(f"Simplified Ratio = {int(a/g)} : {int(b/g)}")
-
-    elif topic == "Simultaneous Equations":
-        st.header("Simultaneous Equation Solver")
-        eq1 = st.text_input("Equation 1", "2x + 3y = 11")
-        eq2 = st.text_input("Equation 2", "1x - 1y = 1")
-        def parse_eq(eq):
-            numbers = list(map(int,re.findall(r"-?\d+",eq)))
-            return numbers[0], numbers[1], numbers[2]
-        if st.button("Solve Equations"):
-            try:
-                a1,b1,c1 = parse_eq(eq1)
-                a2,b2,c2 = parse_eq(eq2)
-                det = a1*b2 - a2*b1
-                if det != 0:
-                    x = (c1*b2 - c2*b1)/det
-                    y = (a1*c2 - a2*c1)/det
-                    st.success(f"Solution: x={x}, y={y}")
-                else:
-                    st.error("No unique solution")
-            except:
-                st.error("Error parsing equations")
-
+    # ===== Dynamic Topics =====
     elif topic in dynamic_topics:
         file_path = f"topics/{topic.replace(' ','_')}.py"
         with open(file_path) as f:
             exec(f.read())
 
-    # -------------------------
-    # Learner-Teacher Chat
-    # -------------------------
-    st.header("Chat with Teacher")
-    learner_name = st.text_input("Your name")
-    chat_message = st.text_input("Message to teacher")
+    # ===== Learner-Teacher Chat =====
+    st.subheader("Chat with Teachers")
+    chat_file = f"chats/{st.session_state.learner_name}.json"
+    if os.path.exists(chat_file):
+        with open(chat_file) as f:
+            chat_data = json.load(f)
+        for msg in chat_data:
+            st.write(f"**{msg['sender']}:** {msg['message']}")
+    else:
+        chat_data = []
+
+    msg_input = st.text_input("Send a message to teacher")
     if st.button("Send Message"):
-        if learner_name.strip() and chat_message.strip():
-            with open("chat/chat.json", "a") as f:
-                f.write(json.dumps({"from": learner_name, "to":"teacher", "message":chat_message})+"\n")
-            st.success("Message sent!")
+        if msg_input:
+            chat_data.append({"sender": st.session_state.learner_name, "message": msg_input})
+            with open(chat_file, "w") as f:
+                json.dump(chat_data,f)
+            st.experimental_rerun()
 
 # =====================================================
 # TEACHER SECTION
 # =====================================================
-elif user_type=="Teacher":
+elif user_type == "Teacher":
     st.header("Teacher Portal")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -170,35 +138,32 @@ elif user_type=="Teacher":
             teacher_data[username] = password
             with open(PASSWORD_FILE,"w") as f:
                 json.dump(teacher_data,f)
-            st.success("Registered! Logged in.")
+            st.success("Registered successfully")
+            st.session_state.teacher_logged_in=True
+            st.session_state.teacher_name=username
         elif teacher_data[username]==password:
-            st.success("Login successful!")
+            st.success("Login successful")
+            st.session_state.teacher_logged_in=True
+            st.session_state.teacher_name=username
         else:
             st.error("Wrong password")
-        st.session_state.teacher_logged_in=True
-        st.session_state.teacher_name=username
 
     if st.session_state.teacher_logged_in:
         st.subheader("Submit Topic")
-
         topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Topic Description")
-        topic_code = st.text_area("Python Code (optional)")
+        topic_description = st.text_area("Description")
+        topic_code = st.text_area("Python Code")
 
-        if st.button("Generate Python Code"):
-            if topic_description.strip()=="":
-                st.error("Enter a description first")
-            else:
-                openai.api_key = st.secrets["OPENAI_API_KEY"]
-                response = openai.Completion.create(
-                    model="text-davinci-003",
-                    prompt=f"Write Python code for this math topic:\n{topic_description}\nPython code:",
-                    max_tokens=400,
-                    temperature=0
-                )
-                topic_code = response.choices[0].text.strip()
-                st.text_area("Python Code", value=topic_code, height=300)
-                st.success("Code generated! Edit before submission if needed.")
+        if st.button("Generate Python Code from Description"):
+            openai.api_key = st.secrets["OPENAI_API_KEY"]
+            prompt = f"Create Python code for this topic: {topic_description}"
+            response = openai.Completion.create(
+                engine="text-davinci-003",
+                prompt=prompt,
+                max_tokens=300
+            )
+            topic_code = response.choices[0].text.strip()
+            st.code(topic_code)
 
         if st.button("Submit Topic"):
             submission = {
@@ -207,56 +172,65 @@ elif user_type=="Teacher":
                 "topic_description": topic_description,
                 "topic_code": topic_code
             }
-            filename = topic_name.replace(" ","_")+".json"
-            with open(f"submissions/{filename}","w") as f:
+            filename = topic_name.replace(" ","_") + ".json"
+            with open(f"submissions/{filename}", "w") as f:
                 json.dump(submission,f)
             st.success("Topic submitted for approval!")
-
-        # -------------------------
-        # Teacher Chat with Learner
-        # -------------------------
-        st.header("Chat with Learners")
-        chat_messages = []
-        if os.path.exists("chat/chat.json"):
-            with open("chat/chat.json") as f:
-                for line in f:
-                    chat_messages.append(json.loads(line))
-            for msg in chat_messages:
-                st.write(f"{msg['from']} -> {msg['to']}: {msg['message']}")
 
 # =====================================================
 # EDITOR SECTION
 # =====================================================
-elif user_type=="Editor":
-    st.header("Editor Dashboard")
-    editor_password_input = st.text_input("Enter Editor Password", type="password")
+elif user_type == "Editor":
+    st.header("Editor Dashboard (Private Features)")
+    editor_password_input = st.text_input("Enter Special Editor Password", type="password")
+    if editor_password_input == "YourSuperSecret123":  # Set your editor password
+        st.success("Access granted to private editor features!")
 
-    if editor_password_input=="YourSecurePassword":  # set your password
-        st.success("Editor access granted!")
-
+        st.subheader("GitHub Approval")
         repo_name = st.text_input("GitHub Repo (username/repo)")
-
         submissions = glob.glob("submissions/*.json")
-        if submissions:
-            for file in submissions:
-                with open(file) as f:
-                    data = json.load(f)
-                st.subheader(data["topic_name"])
-                st.write("Teacher:",data["teacher"])
-                st.write("Description:",data["topic_description"])
-                st.code(data["topic_code"])
-                if st.button(f"Approve {data['topic_name']}", key=file):
-                    try:
-                        from github import Github
-                        g = Github(st.secrets["GITHUB_TOKEN"])
-                        repo = g.get_repo(repo_name)
-                        filename = f"topics/{data['topic_name'].replace(' ','_')}.py"
-                        repo.create_file(filename,"Add topic",data["topic_code"])
-                        os.rename(file,f"approved/{os.path.basename(file)}")
-                        st.success("Topic approved and pushed to GitHub!")
-                    except Exception as e:
-                        st.error(e)
-        else:
-            st.info("No submissions yet")
+
+        for file in submissions:
+            with open(file) as f:
+                data = json.load(f)
+            st.subheader(data["topic_name"])
+            st.write("Teacher:", data["teacher"])
+            st.write("Description:", data["topic_description"])
+            st.code(data["topic_code"])
+            if st.button(f"Approve {data['topic_name']}", key=file):
+                try:
+                    g = Github(st.secrets["GITHUB_TOKEN"])
+                    repo = g.get_repo(repo_name)
+                    filename = f"topics/{data['topic_name'].replace(' ','_')}.py"
+                    repo.create_file(filename, "Add topic", data["topic_code"])
+                    os.rename(file, f"approved/{os.path.basename(file)}")
+                    st.success("Topic approved and pushed to GitHub!")
+                except Exception as e:
+                    st.error(e)
+
+        # ===== Private 3D Mini-Game =====
+        st.subheader("Private 3D Mini-Game")
+        st.components.v1.html("""
+        <canvas id="canvas"></canvas>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+        <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('canvas')});
+        renderer.setSize(400, 400);
+        const geometry = new THREE.BoxGeometry();
+        const material = new THREE.MeshBasicMaterial({color: 0x00ff00, wireframe:true});
+        const cube = new THREE.Mesh(geometry, material);
+        scene.add(cube);
+        camera.position.z = 5;
+        function animate() {
+            requestAnimationFrame(animate);
+            cube.rotation.x += 0.01;
+            cube.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+        animate();
+        </script>
+        """, height=450)
     else:
-        st.warning("Enter correct editor password to access")
+        st.warning("Enter the correct password to access your private editor features.")
