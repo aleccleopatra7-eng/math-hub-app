@@ -50,9 +50,14 @@ user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 # LEARNER SECTION
 # =====================================================
 if user_type == "Learner":
+
     st.header("Learner Section")
     default_topics = ["LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations"]
-    dynamic_topics = [os.path.basename(f).replace(".py", "").replace("_", " ") for f in glob.glob("topics/*.py")]
+
+    dynamic_topics = []
+    for file in glob.glob("topics/*.py"):
+        name = os.path.basename(file).replace(".py", "").replace("_"," ")
+        dynamic_topics.append(name)
 
     topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
 
@@ -64,25 +69,29 @@ if user_type == "Learner":
         lcm = a*b//gcd
         st.success(f"GCD = {gcd}")
         st.success(f"LCM = {lcm}")
+
         factors_a=[i for i in range(1,a+1) if a%i==0]
         factors_b=[i for i in range(1,b+1) if b%i==0]
         multiples_a=[a*i for i in range(1,10)]
         multiples_b=[b*i for i in range(1,10)]
+
         fig,ax=plt.subplots()
-        ax.scatter(factors_a,[1]*len(factors_a))
-        ax.scatter(factors_b,[2]*len(factors_b))
-        ax.scatter(multiples_a,[3]*len(multiples_a))
-        ax.scatter(multiples_b,[4]*len(multiples_b))
-        ax.scatter(gcd,0.5,s=150)
-        ax.scatter(lcm,2.5,s=150)
+        y_positions=[1,2,3,4]
+        ax.scatter(factors_a,[y_positions[0]]*len(factors_a), marker="s", color="orange", label="Factors A")
+        ax.scatter(factors_b,[y_positions[1]]*len(factors_b), marker="s", color="blue", label="Factors B")
+        ax.scatter(multiples_a,[y_positions[2]]*len(multiples_a), marker="o", color="green", label="Multiples A")
+        ax.scatter(multiples_b,[y_positions[3]]*len(multiples_b), marker="o", color="red", label="Multiples B")
+        ax.scatter(gcd,0.5,s=150, color="black", label="GCD")
+        ax.scatter(lcm,2.5,s=150, color="purple", label="LCM")
         ax.set_yticks([0.5,1,2,3,4,2.5])
         ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
         ax.grid(True)
+        ax.legend()
         st.pyplot(fig)
 
     elif topic == "Prime Factors":
         st.subheader("Prime Factorization")
-        num = st.number_input("Enter number", 2, 1000, 24)
+        num = st.number_input("Enter number",1,1000,24)
         def prime_factors(n):
             factors=[]
             d=2
@@ -93,8 +102,7 @@ if user_type == "Learner":
                 d+=1
             return factors
         if st.button("Find Prime Factors"):
-            factors = prime_factors(num)
-            st.success(f"Prime Factors: {factors}")
+            st.success(f"Prime Factors: {prime_factors(num)}")
 
     elif topic == "Ratios":
         st.subheader("Ratio Simplifier")
@@ -102,28 +110,28 @@ if user_type == "Learner":
         b = st.number_input("Second Number",1,100,8)
         if st.button("Simplify Ratio"):
             g = math.gcd(a,b)
-            st.success(f"Simplified Ratio: {a//g} : {b//g}")
+            st.success(f"Simplified Ratio = {a//g}:{b//g}")
 
     elif topic == "Simultaneous Equations":
-        st.subheader("Solve Simple Simultaneous Equations")
-        eq1 = st.text_input("Equation 1","2x + 3y = 11")
-        eq2 = st.text_input("Equation 2","1x - 1y = 1")
+        st.subheader("Simultaneous Equations Solver")
+        eq1 = st.text_input("Equation 1", "2x + 3y = 11")
+        eq2 = st.text_input("Equation 2", "1x - 1y = 1")
         def parse_eq(eq):
-            nums = list(map(int,re.findall(r'-?\d+',eq)))
+            nums=list(map(int,re.findall(r'-?\d+',eq)))
             return nums[0],nums[1],nums[2]
         if st.button("Solve Equations"):
             try:
-                a1,b1,c1 = parse_eq(eq1)
-                a2,b2,c2 = parse_eq(eq2)
-                det = a1*b2 - a2*b1
-                if det!=0:
-                    x = (c1*b2 - c2*b1)/det
-                    y = (a1*c2 - a2*c1)/det
+                a1,b1,c1=parse_eq(eq1)
+                a2,b2,c2=parse_eq(eq2)
+                det=a1*b2 - a2*b1
+                if det !=0:
+                    x=(c1*b2 - c2*b1)/det
+                    y=(a1*c2 - a2*c1)/det
                     st.success(f"Solution: x={x}, y={y}")
                 else:
-                    st.error("No unique solution exists")
+                    st.error("No unique solution exists!")
             except:
-                st.error("Invalid format! Use ax + by = c")
+                st.error("Check equation format: ax + by = c")
 
     elif topic in dynamic_topics:
         file_path=f"topics/{topic.replace(' ','_')}.py"
@@ -134,9 +142,10 @@ if user_type == "Learner":
 # TEACHER SECTION
 # =====================================================
 elif user_type == "Teacher":
+
     st.header("Teacher Portal")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    username=st.text_input("Username")
+    password=st.text_input("Password", type="password")
 
     if st.button("Register / Login"):
         if username not in teacher_data:
@@ -151,12 +160,12 @@ elif user_type == "Teacher":
             st.session_state.teacher_logged_in=True
             st.session_state.teacher_name=username
         else:
-            st.error("Wrong password")
+            st.error("Incorrect password")
 
     if st.session_state.teacher_logged_in:
         st.subheader("Submit Topic")
         topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Description")
+        topic_description = st.text_area("Topic Description")
         topic_code = st.text_area("Python Code")
 
         if st.button("Submit Topic"):
@@ -176,20 +185,20 @@ elif user_type == "Teacher":
 # =====================================================
 elif user_type == "Editor":
     st.header("Editor Dashboard")
-    editor_pass_input = st.text_input("Enter Editor Password", type="password")
-    editor_pass = st.secrets.get("EDITOR_PASSWORD","default_editor_pass")
 
-    if editor_pass_input != editor_pass:
-        st.error("Invalid password. Access denied.")
-    else:
+    editor_password_input = st.text_input("Enter Editor Password", type="password")
+    editor_master_password = "mercy_paul_i_love_you"  # change as needed
+
+    if editor_password_input == editor_master_password:
         st.success("Access granted!")
+
         repo_name = st.text_input("GitHub Repo (username/repo)")
         submissions = glob.glob("submissions/*.json")
 
         if submissions:
             for file in submissions:
                 with open(file) as f:
-                    data = json.load(f)
+                    data=json.load(f)
                 st.subheader(data["topic_name"])
                 st.write("Teacher:", data["teacher"])
                 st.write("Description:", data["topic_description"])
@@ -198,7 +207,7 @@ elif user_type == "Editor":
                     try:
                         g = Github(st.secrets["GITHUB_TOKEN"])
                         repo = g.get_repo(repo_name)
-                        filename = f"topics/{data['topic_name'].replace(' ','_')}.py"
+                        filename=f"topics/{data['topic_name'].replace(' ','_')}.py"
                         repo.create_file(filename,"Add topic",data["topic_code"])
                         os.rename(file,f"approved/{os.path.basename(file)}")
                         st.success("Topic approved and pushed to GitHub!")
@@ -206,3 +215,5 @@ elif user_type == "Editor":
                         st.error(e)
         else:
             st.info("No submissions yet")
+    else:
+        st.warning("Enter the correct editor password to access this section.")
