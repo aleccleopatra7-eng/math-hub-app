@@ -1,30 +1,39 @@
+```python
 import streamlit as st
 import math
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import glob
-import re
 import json
-from email.message import EmailMessage
-import smtplib
 from github import Github
 
 # -------------------------
 # PAGE SETTINGS
 # -------------------------
-st.set_page_config(page_title="Interactive Math Hub", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Interactive Math Hub", page_icon="📊")
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
-# USER TYPE SELECTION
+# CREATE REQUIRED FOLDERS
 # -------------------------
-user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
+os.makedirs("topics", exist_ok=True)
+os.makedirs("submissions", exist_ok=True)
+os.makedirs("approved", exist_ok=True)
 
 # -------------------------
-# PASSWORD FILE (for teachers)
+# SESSION STATE
+# -------------------------
+if "teacher_logged_in" not in st.session_state:
+    st.session_state.teacher_logged_in = False
+if "teacher_name" not in st.session_state:
+    st.session_state.teacher_name = ""
+
+# -------------------------
+# PASSWORD FILE
 # -------------------------
 PASSWORD_FILE = "teachers.json"
+
 if os.path.exists(PASSWORD_FILE):
     with open(PASSWORD_FILE, "r") as f:
         teacher_data = json.load(f)
@@ -32,147 +41,182 @@ else:
     teacher_data = {}
 
 # -------------------------
+# USER TYPE
+# -------------------------
+user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
+
+# =====================================================
 # LEARNER SECTION
-# -------------------------
+# =====================================================
 if user_type == "Learner":
+
     st.header("Learner Section")
-    st.write("Choose a topic from the sidebar to explore.")
 
-    # Built-in topics
-    default_topics = {
-        "LCM & GCD": "built-in",
-        "Prime Factors": "built-in",
-        "Ratios": "built-in",
-        "Simultaneous Equations": "built-in"
-    }
+    default_topics = [
+        "LCM & GCD",
+        "Prime Factors",
+        "Ratios",
+        "Simultaneous Equations"
+    ]
 
-    # Load dynamic topics
-    dynamic_topics = {}
-    if os.path.exists("topics"):
-        for f in glob.glob("topics/*.py"):
-            name = os.path.basename(f).replace("_", " ").replace(".py", "")
-            dynamic_topics[name] = f
+    dynamic_topics = []
 
-    all_topics = list(default_topics.keys()) + list(dynamic_topics.keys())
-    tool = st.sidebar.selectbox("Choose Topic", all_topics)
+    for file in glob.glob("topics/*.py"):
+        name = os.path.basename(file).replace(".py", "").replace("_"," ")
+        dynamic_topics.append(name)
 
-    if tool in dynamic_topics:
-        st.subheader(f"Dynamic Topic: {tool}")
-        with open(dynamic_topics[tool], "r") as f:
+    topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
+
+    if topic == "LCM & GCD":
+
+        st.subheader("LCM & GCD Visualizer")
+
+        a = st.number_input("Number A",1,100,6)
+        b = st.number_input("Number B",1,100,8)
+
+        gcd = math.gcd(a,b)
+        lcm = a*b//gcd
+
+        st.success(f"GCD = {gcd}")
+        st.success(f"LCM = {lcm}")
+
+        factors_a=[i for i in range(1,a+1) if a%i==0]
+        factors_b=[i for i in range(1,b+1) if b%i==0]
+
+        multiples_a=[a*i for i in range(1,10)]
+        multiples_b=[b*i for i in range(1,10)]
+
+        fig,ax=plt.subplots()
+
+        ax.scatter(factors_a,[1]*len(factors_a))
+        ax.scatter(factors_b,[2]*len(factors_b))
+        ax.scatter(multiples_a,[3]*len(multiples_a))
+        ax.scatter(multiples_b,[4]*len(multiples_b))
+
+        ax.scatter(gcd,0.5,s=150)
+        ax.scatter(lcm,2.5,s=150)
+
+        ax.set_yticks([0.5,1,2,3,4,2.5])
+        ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
+
+        ax.grid(True)
+
+        st.pyplot(fig)
+
+    elif topic in dynamic_topics:
+
+        file_path=f"topics/{topic.replace(' ','_')}.py"
+
+        with open(file_path) as f:
             exec(f.read())
-    else:
-        # BUILT-IN TOPICS
-        if tool == "LCM & GCD":
-            st.header("LCM & GCD Visualizer")
-            a = st.number_input("Number 1", 1, 50, 6)
-            b = st.number_input("Number 2", 1, 50, 8)
-            gcd = math.gcd(a, b)
-            lcm = a * b // gcd
-            st.success(f"GCD = {gcd}")
-            st.success(f"LCM = {lcm}")
 
-            st.subheader("Factors & Multiples")
-            factors_a = [i for i in range(1, a+1) if a % i == 0]
-            factors_b = [i for i in range(1, b+1) if b % i == 0]
-            multiples_a = [a*i for i in range(1, 10)]
-            multiples_b = [b*i for i in range(1, 10)]
-            colorblind = st.checkbox("Enable color-blind friendly mode")
-
-            fig, ax = plt.subplots()
-            y_positions = [1,2,3,4]
-            ax.scatter(factors_a, [y_positions[0]]*len(factors_a),
-                       marker="s", color="orange" if not colorblind else "black", label="Factors A")
-            ax.scatter(factors_b, [y_positions[1]]*len(factors_b),
-                       marker="s", color="blue" if not colorblind else "gray", label="Factors B")
-            ax.scatter(multiples_a, [y_positions[2]]*len(multiples_a),
-                       marker="o", color="green" if not colorblind else "purple", label="Multiples A")
-            ax.scatter(multiples_b, [y_positions[3]]*len(multiples_b),
-                       marker="o", color="red" if not colorblind else "brown", label="Multiples B")
-            ax.scatter(lcm, 2.5, color="green" if not colorblind else "purple", s=120, label="LCM")
-            ax.scatter(gcd, 0.5, color="orange" if not colorblind else "black", s=120, label="GCD")
-
-            for x in factors_a: ax.text(x,1.05,str(x),ha="center")
-            for x in factors_b: ax.text(x,2.05,str(x),ha="center")
-            for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
-            for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
-            ax.set_yticks([0.5,1,2,3,4,2.5])
-            ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","Multiples B","LCM"])
-            ax.grid(True)
-            ax.legend()
-            st.pyplot(fig)
-
-# -------------------------
+# =====================================================
 # TEACHER SECTION
-# -------------------------
-elif user_type == "Teacher":
-    st.header("Teacher Section")
-    st.write("Login to submit new math topics. Editor approval required.")
+# =====================================================
+elif user_type=="Teacher":
 
-    teacher_name = st.text_input("Teacher Username")
-    teacher_password = st.text_input("Password", type="password")
+    st.header("Teacher Portal")
 
-    # Teacher registration if new
+    username=st.text_input("Username")
+    password=st.text_input("Password",type="password")
+
     if st.button("Register / Login"):
-        if teacher_name not in teacher_data:
-            teacher_data[teacher_name] = teacher_password
-            with open(PASSWORD_FILE, "w") as f:
-                json.dump(teacher_data, f)
-            st.success("Registered successfully! Logged in.")
-        elif teacher_data.get(teacher_name) == teacher_password:
-            st.success("Login successful!")
+
+        if username not in teacher_data:
+
+            teacher_data[username]=password
+
+            with open(PASSWORD_FILE,"w") as f:
+                json.dump(teacher_data,f)
+
+            st.success("Registered successfully")
+
+            st.session_state.teacher_logged_in=True
+            st.session_state.teacher_name=username
+
+        elif teacher_data[username]==password:
+
+            st.success("Login successful")
+
+            st.session_state.teacher_logged_in=True
+            st.session_state.teacher_name=username
+
         else:
-            st.error("Incorrect password.")
+            st.error("Wrong password")
 
-        # Topic submission form
-        topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Topic Description")
-        topic_code = st.text_area("Topic Code")
+    if st.session_state.teacher_logged_in:
 
-        if st.button("Submit Topic for Approval"):
-            email_sender = "aleccleopatra7@gmail.com"
-            email_password = "aceluffy#"
-            recipients = ["aleccleopatra7@gmail.com","alecriya22@gmail.com"]
+        st.subheader("Submit Topic")
 
-            msg = EmailMessage()
-            msg['Subject'] = f"New Topic Submitted: {topic_name}"
-            msg['From'] = email_sender
-            msg['To'] = ", ".join(recipients)
-            msg.set_content(f"Topic: {topic_name}\nDescription:\n{topic_description}\nCode:\n{topic_code}")
+        topic_name=st.text_input("Topic Name")
 
-            try:
-                with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
-                    smtp.login(email_sender,email_password)
-                    smtp.send_message(msg)
-                st.success("Topic submitted! Editor notified via email.")
-            except Exception as e:
-                st.error(f"Failed to send email: {e}")
+        topic_description=st.text_area("Description")
 
-# -------------------------
+        topic_code=st.text_area("Python Code")
+
+        if st.button("Submit Topic"):
+
+            submission={
+                "teacher":st.session_state.teacher_name,
+                "topic_name":topic_name,
+                "topic_description":topic_description,
+                "topic_code":topic_code
+            }
+
+            filename=topic_name.replace(" ","_")+".json"
+
+            with open(f"submissions/{filename}","w") as f:
+                json.dump(submission,f)
+
+            st.success("Topic submitted for approval!")
+
+# =====================================================
 # EDITOR SECTION
-# -------------------------
-elif user_type == "Editor":
+# =====================================================
+elif user_type=="Editor":
+
     st.header("Editor Dashboard")
-    st.write("Approve new topics submitted by teachers and push to GitHub.")
 
-    github_token = os.getenv("GITHUB_TOKEN")
-    repo_name = st.text_input("GitHub repo (username/repo)")
+    repo_name=st.text_input("GitHub Repo (username/repo)")
 
-    topic_file = st.file_uploader("Upload teacher submitted topic (.py)")
-    if st.button("Approve & Push"):
-        if topic_file and github_token:
-            try:
-                content = topic_file.read().decode("utf-8")
-                g = Github(github_token)
-                repo = g.get_repo(repo_name)
-                file_name = f"topics/{topic_file.name}"
+    submissions=glob.glob("submissions/*.json")
+
+    if submissions:
+
+        for file in submissions:
+
+            with open(file) as f:
+                data=json.load(f)
+
+            st.subheader(data["topic_name"])
+
+            st.write("Teacher:",data["teacher"])
+
+            st.write("Description:",data["topic_description"])
+
+            st.code(data["topic_code"])
+
+            if st.button(f"Approve {data['topic_name']}",key=file):
+
                 try:
-                    existing_file = repo.get_contents(file_name)
-                    repo.update_file(existing_file.path, f"Update topic {topic_file.name}", content, existing_file.sha)
-                    st.success("Topic updated in GitHub repo!")
-                except:
-                    repo.create_file(file_name, f"Add topic {topic_file.name}", content)
-                    st.success("Topic added to GitHub repo!")
-            except Exception as e:
-                st.error(f"Error pushing to GitHub: {e}")
-        else:
-            st.error("Upload a file and ensure GITHUB_TOKEN is set.")
+
+                    g=Github(st.secrets["GITHUB_TOKEN"])
+
+                    repo=g.get_repo(repo_name)
+
+                    filename=f"topics/{data['topic_name'].replace(' ','_')}.py"
+
+                    repo.create_file(filename,"Add topic",data["topic_code"])
+
+                    os.rename(file,f"approved/{os.path.basename(file)}")
+
+                    st.success("Topic approved and pushed to GitHub!")
+
+                except Exception as e:
+
+                    st.error(e)
+
+    else:
+
+        st.info("No submissions yet")
+```
