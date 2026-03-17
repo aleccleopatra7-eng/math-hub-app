@@ -7,37 +7,38 @@ import glob
 import json
 from github import Github
 import openai
-import streamlit.components.v1 as components
+from fractions import Fraction
 
 # -------------------------
 # PAGE SETTINGS
 # -------------------------
-st.set_page_config(page_title="Interactive Math Hub", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Interactive Math Hub", page_icon="📊")
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
-# CREATE REQUIRED FOLDERS
+# CREATE FOLDERS
 # -------------------------
 os.makedirs("topics", exist_ok=True)
 os.makedirs("submissions", exist_ok=True)
 os.makedirs("approved", exist_ok=True)
-os.makedirs("messages", exist_ok=True)
-os.makedirs("groups", exist_ok=True)
+os.makedirs("inbox", exist_ok=True)
+os.makedirs("feedback", exist_ok=True)
 
 # -------------------------
 # SESSION STATE
 # -------------------------
-if "teacher_logged_in" not in st.session_state: st.session_state.teacher_logged_in = False
-if "teacher_name" not in st.session_state: st.session_state.teacher_name = ""
-if "editor_logged_in" not in st.session_state: st.session_state.editor_logged_in = False
-if "special_answer_verified" not in st.session_state: st.session_state.special_answer_verified = False
+if "teacher_logged_in" not in st.session_state:
+    st.session_state.teacher_logged_in = False
+if "editor_logged_in" not in st.session_state:
+    st.session_state.editor_logged_in = False
+if "special_verified" not in st.session_state:
+    st.session_state.special_verified = False
 
 # -------------------------
 # LOAD TEACHERS
 # -------------------------
-PASSWORD_FILE = "teachers.json"
-if os.path.exists(PASSWORD_FILE):
-    with open(PASSWORD_FILE,"r") as f:
+if os.path.exists("teachers.json"):
+    with open("teachers.json","r") as f:
         teacher_data = json.load(f)
 else:
     teacher_data = {}
@@ -45,15 +46,14 @@ else:
 # -------------------------
 # SECRETS
 # -------------------------
-GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN", "")
-OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY", "")
+GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN","")
+OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY","")
 openai.api_key = OPENAI_API_KEY
+
 EDITOR_PASSWORD = "aceluffy"
-SPECIAL_QUESTION = "who is my chizi?"
-SPECIAL_ANSWER = "riya"
 
 # -------------------------
-# USER TYPE SELECTION
+# USER TYPE
 # -------------------------
 user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 
@@ -62,17 +62,14 @@ user_type = st.radio("I am a:", ["Learner", "Teacher", "Editor"])
 # =====================================================
 if user_type == "Learner":
     st.header("Learner Section")
-    
-    # Topics selection
-    default_topics = ["LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations"]
-    dynamic_topics = [os.path.basename(f).replace(".py","").replace("_"," ") for f in glob.glob("topics/*.py")]
-    topic = st.sidebar.selectbox("Choose Topic", default_topics + dynamic_topics)
-    
+
+    topics = ["LCM & GCD", "Prime Factors", "Ratios", "Simultaneous Equations"]
+    topic = st.selectbox("Choose Topic", topics)
+
     # -------------------------
-    # LCM & GCD
+    # LCM & GCD Visualizer
     # -------------------------
     if topic == "LCM & GCD":
-        st.subheader("LCM & GCD Visualizer")
         a = st.number_input("Number A", 1, 100, 6)
         b = st.number_input("Number B", 1, 100, 8)
         gcd = math.gcd(a,b)
@@ -80,10 +77,12 @@ if user_type == "Learner":
         st.success(f"GCD = {gcd}")
         st.success(f"LCM = {lcm}")
 
+        # Visualize Factors & Multiples
         factors_a = [i for i in range(1,a+1) if a%i==0]
         factors_b = [i for i in range(1,b+1) if b%i==0]
         multiples_a = [a*i for i in range(1,10)]
         multiples_b = [b*i for i in range(1,10)]
+
         fig,ax = plt.subplots()
         ax.scatter(factors_a,[1]*len(factors_a), marker="s", color="orange", label="Factors A")
         ax.scatter(factors_b,[2]*len(factors_b), marker="s", color="blue", label="Factors B")
@@ -91,10 +90,12 @@ if user_type == "Learner":
         ax.scatter(multiples_b,[4]*len(multiples_b), marker="o", color="red", label="Multiples B")
         ax.scatter(lcm,3.5,color="green",s=120,label="LCM")
         ax.scatter(gcd,0.5,color="orange",s=120,label="GCD")
+
         for x in factors_a: ax.text(x,1.05,str(x),ha="center")
         for x in factors_b: ax.text(x,2.05,str(x),ha="center")
         for x in multiples_a: ax.text(x,3.05,str(x),ha="center")
         for x in multiples_b: ax.text(x,4.05,str(x),ha="center")
+
         ax.set_yticks([0.5,1,2,3,3.5,4])
         ax.set_yticklabels(["GCD","Factors A","Factors B","Multiples A","LCM","Multiples B"])
         ax.grid(True)
@@ -102,45 +103,88 @@ if user_type == "Learner":
         st.pyplot(fig)
 
     # -------------------------
-    # Ratios
+    # Ratios (Simplified + Multiples)
     # -------------------------
     elif topic == "Ratios":
-        st.header("Ratios")
         a = st.number_input("Value A",1,100,4)
         b = st.number_input("Value B",1,100,6)
-        st.write(f"The ratio A:B is {a}:{b}")
+        if b != 0:
+            frac = Fraction(a,b)
+            st.write(f"Simplified Ratio: {frac.numerator}:{frac.denominator}")
+
+        multiples_limit = st.number_input("Multiples limit",1,20,10)
+        fig, ax = plt.subplots()
+        ax.scatter([i for i in range(1,multiples_limit+1)],[a*i for i in range(1,multiples_limit+1)], color="orange", label="A multiples")
+        ax.scatter([i for i in range(1,multiples_limit+1)],[b*i for i in range(1,multiples_limit+1)], color="blue", label="B multiples")
+        ax.set_xlabel("Multiplier")
+        ax.set_ylabel("Value")
+        ax.set_title(f"Multiples of {a} and {b}")
+        ax.legend()
+        st.pyplot(fig)
 
     # -------------------------
-    # Prime Factors
+    # Prime Factors (Tree)
     # -------------------------
     elif topic == "Prime Factors":
-        st.header("Prime Factors")
-        n = st.number_input("Enter a number",2,100,12)
-        factors=[]
-        temp=n
-        for i in range(2,temp+1):
-            while temp%i==0:
-                factors.append(i)
-                temp//=i
-        st.write("Prime factors:", factors)
+        n = st.number_input("Enter number",2,100,12)
+        def prime_factors_tree(n):
+            factors = []
+            temp = n
+            i=2
+            while i*i <= temp:
+                while temp % i == 0:
+                    factors.append(i)
+                    temp //= i
+                i += 1
+            if temp>1:
+                factors.append(temp)
+            return factors
+        factors = prime_factors_tree(n)
+        st.write(f"Prime Factors: {factors}")
+
+        # Visual Tree
+        def draw_factor_tree(number):
+            fig, ax = plt.subplots()
+            levels = [(number,0,0)]
+            y_gap = -1
+            texts=[]
+            while levels:
+                num,x,y = levels.pop(0)
+                for i in range(2,num+1):
+                    if num % i ==0:
+                        j=num//i
+                        ax.plot([x,x-0.5],[y,y+y_gap],color='black')
+                        ax.plot([x,x+0.5],[y,y+y_gap],color='black')
+                        texts.append((x-0.5,y+y_gap,str(i)))
+                        texts.append((x+0.5,y+y_gap,str(j)))
+                        levels.append((i,x-0.5,y+y_gap))
+                        levels.append((j,x+0.5,y+y_gap))
+                        break
+            ax.text(0,0,str(number),ha='center',va='center',bbox=dict(facecolor='yellow', alpha=0.5))
+            for x,y,text in texts:
+                ax.text(x,y,text,ha='center',va='center',bbox=dict(facecolor='lightblue', alpha=0.5))
+            ax.axis('off')
+            st.pyplot(fig)
+        draw_factor_tree(n)
 
     # -------------------------
     # Simultaneous Equations
     # -------------------------
     elif topic == "Simultaneous Equations":
-        st.header("Simultaneous Equation Solver")
         a1 = st.number_input("a1", value=2)
         b1 = st.number_input("b1", value=3)
         c1 = st.number_input("c1", value=11)
         a2 = st.number_input("a2", value=1)
         b2 = st.number_input("b2", value=-1)
         c2 = st.number_input("c2", value=1)
-        if st.button("Solve Equations"):
+
+        if st.button("Solve"):
             det = a1*b2 - a2*b1
-            if det !=0:
+            if det != 0:
                 x = (c1*b2 - c2*b1)/det
                 y = (a1*c2 - a2*c1)/det
-                st.success(f"Solution: x = {x}, y = {y}")
+                st.success(f"x={x}, y={y}")
+
                 # Plot lines
                 x_vals = np.linspace(-10,10,400)
                 y1_vals = (c1 - a1*x_vals)/b1
@@ -153,214 +197,189 @@ if user_type == "Learner":
                 ax.legend()
                 st.pyplot(fig)
             else:
-                st.error("No unique solution (lines may be parallel)")
+                st.error("No unique solution")
 
     # -------------------------
-    # Learner-Teacher / Group Chat
+    # Inbox & Feedback
     # -------------------------
-    st.subheader("Chat with Teacher / Group")
-    learner_name = st.text_input("Your Name")
-    teacher_code = st.text_input("Teacher Code")
-    group_name = st.text_input("Group Name (optional)")
-    chat_file = f"groups/{teacher_code}_{group_name}.json" if group_name else f"messages/{teacher_code}.json"
-    
-    # Safe loading and auto-join
-    if os.path.exists(chat_file):
-        with open(chat_file,"r") as f:
-            chat_history = json.load(f)
-    else:
-        chat_history = {"members":[],"messages":[]}
-        with open(chat_file,"w") as f:
-            json.dump(chat_history,f)
-    
-    if learner_name.strip() and learner_name not in chat_history["members"]:
-        chat_history["members"].append(learner_name)
-        with open(chat_file,"w") as f:
-            json.dump(chat_history,f)
-    
-    # Display chat messages
-    st.write("Messages:")
-    for msg in chat_history.get("messages",[]):
-        st.write(f"{msg['sender']}: {msg['message']}")
-    
-    # Send message
-    new_msg = st.text_input("Type your message")
-    if st.button("Send Message"):
-        if learner_name.strip() and new_msg.strip():
-            chat_history["messages"].append({"sender": learner_name, "message": new_msg})
-            with open(chat_file,"w") as f:
-                json.dump(chat_history,f)
-            st.experimental_rerun()
+    st.subheader("📥 Send Request to Teacher")
+    name = st.text_input("Your Name")
+    code = st.text_input("Teacher Code")
+    topic_req = st.text_input("Topic")
+    msg = st.text_area("Message")
+    if st.button("Send Request"):
+        if name and code and msg:
+            file=f"inbox/{code}.json"
+            if os.path.exists(file):
+                with open(file,"r") as f:
+                    data=json.load(f)
+            else:
+                data=[]
+            data.append({"name":name,"topic":topic_req,"message":msg})
+            with open(file,"w") as f:
+                json.dump(data,f)
+            st.success("Sent!")
+        else:
+            st.error("Fill all fields")
 
-# =====================================================
+    st.subheader("⭐ Rate This App")
+    rating = st.slider("Rate (1-5)",1,5,3)
+    comment = st.text_area("Comment")
+    suggestion = st.text_area("Suggestions")
+    if st.button("Submit Feedback"):
+        file="feedback/feedback.json"
+        if os.path.exists(file):
+            with open(file,"r") as f:
+                data=json.load(f)
+        else:
+            data=[]
+        data.append({"rating":rating,"comment":comment,"suggestion":suggestion})
+        with open(file,"w") as f:
+            json.dump(data,f)
+            # =====================================================
 # TEACHER SECTION
 # =====================================================
 elif user_type == "Teacher":
-    st.header("Teacher Portal")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    teacher_code = st.text_input("Your Teacher Code (used for groups & chat)")
+    st.header("Teacher Section")
 
-    if st.button("Register / Login"):
+    username = st.text_input("Username")
+    pwd = st.text_input("Password", type="password")
+    code = st.text_input("Your Teacher Code")
+
+    if st.button("Login/Register"):
         if username not in teacher_data:
-            teacher_data[username] = password
+            teacher_data[username] = pwd
             with open("teachers.json","w") as f:
                 json.dump(teacher_data,f)
             st.success("Registered successfully!")
             st.session_state.teacher_logged_in = True
-            st.session_state.teacher_name = username
-        elif teacher_data[username]==password:
-            st.success("Login successful!")
+        elif teacher_data[username] == pwd:
+            st.success("Logged in successfully!")
             st.session_state.teacher_logged_in = True
-            st.session_state.teacher_name = username
         else:
             st.error("Wrong password!")
 
     if st.session_state.teacher_logged_in:
-        st.subheader("Create a Group")
-        group_name = st.text_input("Group Name")
-        if st.button("Create Group"):
-            if group_name.strip() and teacher_code.strip():
-                group_file = f"groups/{teacher_code}_{group_name}.json"
-                if not os.path.exists(group_file):
-                    with open(group_file,"w") as f:
-                        json.dump({"teacher": username, "members": [], "messages":[]},f)
-                    st.success(f"Group '{group_name}' created successfully with code '{teacher_code}'")
-                else:
-                    st.warning("Group already exists!")
-
-        st.subheader("Group Chat")
-        chat_group_name = st.text_input("Select Group for Chat")
-        chat_file = f"groups/{teacher_code}_{chat_group_name}.json"
-        if os.path.exists(chat_file):
-            with open(chat_file,"r") as f:
-                group_data = json.load(f)
+        st.subheader("📬 Student Requests")
+        inbox_file = f"inbox/{code}.json"
+        if os.path.exists(inbox_file):
+            with open(inbox_file,"r") as f:
+                requests = json.load(f)
+            if requests:
+                st.table([[r["name"], r["topic"], r["message"]] for r in requests])
+            else:
+                st.info("No requests yet.")
         else:
-            group_data = {"teacher": username, "members": [], "messages":[]}
+            st.info("No requests yet.")
 
-        new_msg = st.text_input("Type your message to group")
-        if st.button("Send to Group"):
-            if new_msg.strip():
-                group_data["messages"].append({"sender": username, "message": new_msg})
-                with open(chat_file,"w") as f:
-                    json.dump(group_data,f)
-                st.experimental_rerun()
+        st.subheader("⭐ Feedback")
+        feedback_file = "feedback/feedback.json"
+        if os.path.exists(feedback_file):
+            with open(feedback_file,"r") as f:
+                feedbacks = json.load(f)
+            if feedbacks:
+                avg_rating = sum([f["rating"] for f in feedbacks])/len(feedbacks)
+                st.success(f"Average Rating: {round(avg_rating,2)} ⭐")
+                st.table([[f["rating"], f["comment"], f["suggestion"]] for f in feedbacks])
+            else:
+                st.info("No feedback yet.")
+        else:
+            st.info("No feedback yet.")
 
-        st.write("Group Messages:")
-        for msg in group_data.get("messages",[]):
-            st.write(f"{msg['sender']}: {msg['message']}")
-
-        st.subheader("Submit Topic Description")
+        st.subheader("📤 Submit Topic to Editor")
         topic_name = st.text_input("Topic Name")
-        topic_description = st.text_area("Topic Description")
+        topic_desc = st.text_area("Description")
         if st.button("Submit Topic"):
-            if topic_name.strip() and topic_description.strip():
-                submission = {
-                    "teacher": username,
-                    "teacher_code": teacher_code,
-                    "topic_name": topic_name,
-                    "topic_description": topic_description
-                }
-                filename = f"submissions/{topic_name.replace(' ','_')}.json"
-                with open(filename,"w") as f:
+            if topic_name and topic_desc:
+                submission = {"teacher": username, "teacher_code": code, "topic_name": topic_name, "topic_description": topic_desc}
+                file = f"submissions/{topic_name.replace(' ','_')}.json"
+                with open(file,"w") as f:
                     json.dump(submission,f)
-                st.success("Topic submitted for editor approval!")
-                
+                st.success("Topic submitted to editor for approval!")
+
 # =====================================================
-# EDITOR SECTION (Fixed for reliable code generation)
+# EDITOR SECTION
 # =====================================================
 elif user_type == "Editor":
-    st.header("Editor Dashboard")
-    editor_pass_input = st.text_input("Enter Editor Password", type="password")
-    if editor_pass_input == EDITOR_PASSWORD:
+    st.header("Editor Section")
+
+    password = st.text_input("Enter Password", type="password")
+    if password == EDITOR_PASSWORD:
         st.session_state.editor_logged_in = True
 
     if st.session_state.editor_logged_in:
-        st.subheader("Approve Topics & Generate Python Code")
+        st.success("Access Granted ✅")
+
+        # -------------------------
+        # SPECIAL QUESTION LOCK (Mini Games)
+        # -------------------------
+        if not st.session_state.special_verified:
+            st.subheader("🔐 Answer to Access Games")
+            answer = st.text_input("Who is my chizi?")
+            if st.button("Submit Answer"):
+                if answer.lower().strip() == "riya":
+                    st.session_state.special_verified = True
+                    st.success("Access to mini-games granted 🎮")
+                else:
+                    st.error("Wrong answer!")
+        else:
+            st.subheader("🎮 Mini Games")
+            st.markdown("[Play Game](https://www.hero-wars.com/?hl=en)")
+            st.info("More games coming soon!")
+
+        # -------------------------
+        # Topic Management (Visual)
+        # -------------------------
+        st.subheader("📂 Approve & Generate Code")
+
         repo_name = st.text_input("GitHub Repo (username/repo)")
 
-        # Load all teacher submissions
         submissions = glob.glob("submissions/*.json")
         for file in submissions:
             with open(file,"r") as f:
                 data = json.load(f)
+            st.markdown(f"**Topic:** {data.get('topic_name','')}")
+            st.markdown(f"**Description:** {data.get('topic_description','')}")
 
-            st.write("Teacher:", data.get("teacher",""))
-            st.write("Topic Name:", data.get("topic_name",""))
-            st.write("Description:", data.get("topic_description",""))
-            st.code(data.get("topic_code",""))
-
-            # Unique keys for Streamlit buttons
-            generate_key = f"generate_{data.get('topic_name','')}_{file}"
-            push_key = f"push_{data.get('topic_name','')}_{file}"
-
-            # -------------------------
-            # Generate Python Code
-            # -------------------------
-            if st.button(f"Generate Code for {data.get('topic_name','')}", key=generate_key):
+            # Generate Python Code using OpenAI
+            gen_key = f"generate_{data.get('topic_name')}"
+            if st.button(f"Generate Code for {data.get('topic_name')}", key=gen_key):
                 if OPENAI_API_KEY:
-                    if "topic_description" not in data or not data["topic_description"].strip():
-                        st.error("Topic description is missing! Cannot generate code.")
-                        continue
-                    prompt = f"Generate a Python code snippet for this topic:\n{data['topic_description']}"
+                    prompt = f"Generate a Python code snippet for the following topic:\n{data.get('topic_description')}"
                     try:
                         response = openai.Completion.create(
                             model="text-davinci-003",
                             prompt=prompt,
                             max_tokens=500
                         )
-                        generated_code = response.choices[0].text.strip()
-                        data["topic_code"] = generated_code
+                        code = response.choices[0].text.strip()
+                        data["topic_code"] = code
                         with open(file,"w") as f:
                             json.dump(data,f)
-                        st.code(generated_code)
+                        st.code(code)
                         st.success("Code generated successfully!")
                     except Exception as e:
-                        st.error(f"OpenAI API Error: {e}")
+                        st.error(f"OpenAI Error: {e}")
                 else:
-                    st.error("OpenAI API key is missing!")
+                    st.error("OpenAI API Key not set!")
 
-            # -------------------------
-            # Approve & Push to GitHub
-            # -------------------------
-            if st.button(f"Approve & Push {data.get('topic_name','')}", key=push_key):
+            # Push to GitHub
+            push_key = f"push_{data.get('topic_name')}"
+            if st.button(f"Approve & Push {data.get('topic_name')}", key=push_key):
                 if not repo_name.strip():
                     st.error("Enter GitHub repo as username/repo")
-                    continue
-                try:
-                    g = Github(GITHUB_TOKEN)
-                    repo = g.get_repo(repo_name)
-                    filename = f"topics/{data['topic_name'].replace(' ','_')}.py"
-                    if os.path.exists(filename):
-                        # Update existing file
-                        contents = repo.get_contents(filename)
-                        repo.update_file(filename, f"Update topic {data['topic_name']}", data["topic_code"], contents.sha)
-                    else:
-                        # Create new file
-                        repo.create_file(filename, f"Add topic {data['topic_name']}", data["topic_code"])
-                    os.rename(file,f"approved/{os.path.basename(file)}")
-                    st.success(f"Topic '{data['topic_name']}' approved and pushed!")
-                except Exception as e:
-                    st.error(f"GitHub Error: {e}")
-
-        # -------------------------
-        # Private Mini-Games
-        # -------------------------
-        st.subheader("Private Mini-Games")
-        if not st.session_state.special_answer_verified:
-            st.info("Answer the special question to access games")
-            answer = st.text_input(SPECIAL_QUESTION)
-            if st.button("Submit Answer"):
-                if answer.strip() == SPECIAL_ANSWER:
-                    st.session_state.special_answer_verified = True
-                    st.success("Access granted!")
                 else:
-                    st.error("Wrong answer, try again")
-        else:
-            st.success("You can access your private games below!")
-            gta_url = "https://www.hero-wars.com/?hl=en"
-            st.markdown(f"[Play GTA-style Game]({gta_url})")
-            components.iframe(gta_url, width=1000, height=600)
-            st.markdown("Other mini-games coming soon!")
-    else:
-        st.info("Enter editor password to access this section.")
+                    try:
+                        g = Github(GITHUB_TOKEN)
+                        repo = g.get_repo(repo_name)
+                        filename = f"topics/{data['topic_name'].replace(' ','_')}.py"
+                        if os.path.exists(filename):
+                            contents = repo.get_contents(filename)
+                            repo.update_file(filename,f"Update topic {data['topic_name']}",data.get("topic_code",""),contents.sha)
+                        else:
+                            repo.create_file(filename,f"Add topic {data['topic_name']}",data.get("topic_code",""))
+                        os.rename(file,f"approved/{os.path.basename(file)}")
+                        st.success(f"Topic '{data['topic_name']}' approved and pushed!")
+                    except Exception as e:
+                        st.error(f"GitHub Error: {e}")
+        st.success("Thanks for feedback!")
