@@ -14,381 +14,305 @@ import random
 st.set_page_config(page_title="Interactive Math Hub", page_icon="📊")
 
 # -------------------------
-# CREATE REQUIRED FOLDERS
+# CREATE FOLDERS
 # -------------------------
-folders = ["submissions","approved","inbox","feedback","scores"]
-for folder in folders:
-    os.makedirs(folder, exist_ok=True)
+for f in ["scores","feedback","inbox"]:
+    os.makedirs(f, exist_ok=True)
 
 # -------------------------
-# WELCOME PAGE
+# ANIMATED WELCOME
 # -------------------------
-st.markdown("<h1 style='text-align: center; color: orange;'>Welcome to My Math Interactive Hub! 🎉</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center;'>Explore, Learn, and Improve Your Math Skills!</p>", unsafe_allow_html=True)
+st.markdown("""
+<h1 style='text-align:center; color:orange; animation: fadeIn 2s;'>
+🎉 Welcome to My Math Interactive Hub
+</h1>
+<style>
+@keyframes fadeIn {
+    from {opacity: 0; transform: scale(0.5);}
+    to {opacity: 1; transform: scale(1);}
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------------
-# SESSION STATE INIT
+# SESSION STATE
 # -------------------------
-session_keys = ["learner_name","teacher_code","learner_file",
-                "pre_test_done","post_test_done","doing_pretest",
-                "doing_posttest","doing_general_test","teacher_logged_in",
-                "editor_logged_in","special_verified"]
-for key in session_keys:
+for key in ["learner_name","teacher_logged","editor_logged","special_verified"]:
     if key not in st.session_state:
-        st.session_state[key] = False if "done" not in key and "logged_in" not in key else False
+        st.session_state[key] = False
 
 # -------------------------
-# SIDEBAR LOGIN
+# SIDEBAR
 # -------------------------
-st.sidebar.title("Login to Math Hub")
-user_type = st.sidebar.radio("I am a:", ["Learner","Teacher","Editor"])
-color_blind = st.sidebar.checkbox("🎨 Enable Color-Blind Mode")
-COLORS = {"A": "black","B":"gray","C":"blue","D":"purple"} if color_blind else {"A":"orange","B":"blue","C":"green","D":"red"}
+st.sidebar.title("Login")
+user_type = st.sidebar.radio("I am:", ["Learner","Teacher","Editor"])
 
-topics = ["LCM & GCD","Prime Factors","Ratios","Simultaneous Equations"]
-
-# -------------------------
-# TEACHER DATA
-# -------------------------
-teachers_file = "teachers.json"
-if os.path.exists(teachers_file):
-    with open(teachers_file,"r") as f:
-        teacher_data = json.load(f)
-else:
-    teacher_data = {}
-
-EDITOR_PASSWORD = "alex"
+color_blind = st.sidebar.checkbox("🎨 Color-Blind Mode")
+COLORS = {"A":"black","B":"gray","C":"blue","D":"purple"} if color_blind else {"A":"orange","B":"blue","C":"green","D":"red"}
 
 # =========================
 # LEARNER LOGIN
 # =========================
 if user_type=="Learner":
-    learner_name = st.sidebar.text_input("Enter Your Name")
-    teacher_code = st.sidebar.text_input("Enter Teacher Code")
+    name = st.sidebar.text_input("Name")
+    teacher_code = st.sidebar.text_input("Teacher Code")
+
     if st.sidebar.button("Login"):
-        if learner_name and teacher_code:
-            st.session_state.learner_name = learner_name.strip()
-            st.session_state.teacher_code = teacher_code.strip()
-            learner_file = f"scores/{st.session_state.learner_name}.json"
-            st.session_state.learner_file = learner_file
-            if os.path.exists(learner_file):
-                with open(learner_file,"r") as f:
-                    learner_data = json.load(f)
-                st.session_state.pre_test_done = "pre_test" in learner_data
-                st.session_state.post_test_done = "post_test" in learner_data
-            else:
-                learner_data = {}
-                with open(learner_file,"w") as f:
-                    json.dump(learner_data,f)
-            st.success(f"Welcome, {st.session_state.learner_name}!")
-        else:
-            st.sidebar.error("Enter both name and teacher code.")
+        st.session_state.learner_name = name
+        st.success(f"Welcome {name}")
 
 # =========================
 # LEARNER SECTION
 # =========================
-if user_type=="Learner" and st.session_state.learner_name and st.session_state.teacher_code:
-    st.sidebar.title("Activities")
-    activity_options = ["Simulations"]
-    if not st.session_state.pre_test_done or not st.session_state.post_test_done:
-        activity_options.extend(["Pre-Test","Post-Test"])
+if user_type=="Learner" and st.session_state.learner_name:
+
+    file = f"scores/{st.session_state.learner_name}.json"
+
+    if os.path.exists(file):
+        with open(file) as f:
+            data = json.load(f)
     else:
-        activity_options.append("General Test")
-    activity = st.sidebar.radio("Choose Activity", activity_options)
+        data = {"history":[]}
+        with open(file,"w") as f:
+            json.dump(data,f)
+
+    pre_done = "pre_score" in data
+    post_done = "post_score" in data
+
+    options = ["Simulations"]
+    if not pre_done or not post_done:
+        options += ["Pre-Test","Post-Test"]
+    else:
+        options += ["General Test"]
+
+    activity = st.sidebar.radio("Activities", options)
 
     # -------------------------
-    # PRE-TEST
+    # PRE TEST
     # -------------------------
     if activity=="Pre-Test":
-        st.header("📝 Pre-Test (No Simulation Allowed)")
-        st.info("Solve using your knowledge; simulations are disabled during this test.")
-        pre_answers = {}
-        st.subheader("LCM & GCD Questions")
-        pre_answers["LCM"] = st.radio("LCM of 12 and 18?", [36, 54, 72, 24])
-        pre_answers["GCD"] = st.radio("GCD of 24 and 36?", [12,6,18,24])
-        st.subheader("Prime Factors")
-        pre_answers["PrimeFactors"] = st.radio("Prime factors of 28?", ["2,2,7","2,7","2,2,2,7","7,4"])
-        st.subheader("Ratios")
-        pre_answers["Ratio"] = st.radio("Simplify ratio 12:18", ["2:3","3:4","2:2","4:6"])
-        st.subheader("Simultaneous Equations")
-        pre_answers["SimEq"] = st.radio("Solve x + y = 4, x - y = 2, find x?", [1,2,3,4])
+        st.header("Pre-Test (No Simulation)")
+
+        ans = {}
+        ans["LCM"] = st.radio("LCM of 24, 36 and 60?", [360,720,180,240])
+        ans["GCD"] = st.radio("GCD of 48 and 72?", [12,24,36,6])
+        ans["Ratio"] = st.radio("Simplify 45:60", ["3:4","4:5","5:6"])
+        ans["SimEq"] = st.radio("x+y=10, x-y=2 → x=?", [4,5,6])
+
         if st.button("Submit Pre-Test"):
-            learner_data = {"pre_test": pre_answers,"post_test":{},"general_test":{},"simulations_completed":{},"teacher_code":st.session_state.teacher_code,"last_accessed":str(datetime.now())}
-            with open(st.session_state.learner_file,"w") as f:
-                json.dump(learner_data,f)
-            st.success("Pre-Test submitted! You can now take the Post-Test.")
-            st.session_state.pre_test_done = True
+            score = 0
+            if ans["LCM"]==360: score+=1
+            if ans["GCD"]==24: score+=1
+            if ans["Ratio"]=="3:4": score+=1
+            if ans["SimEq"]==6: score+=1
+
+            data["pre_score"]=score
+            with open(file,"w") as f:
+                json.dump(data,f)
+
+            st.success(f"Score: {score}/4")
 
     # -------------------------
-    # POST-TEST
+    # POST TEST
     # -------------------------
     elif activity=="Post-Test":
-        st.header("📝 Post-Test (Simulations Allowed)")
-        st.info("Use simulations to help answer the questions.")
-        post_answers = {}
-        st.subheader("LCM & GCD Questions")
-        a = st.number_input("Number A for LCM & GCD",1,100,6)
-        b = st.number_input("Number B for LCM & GCD",1,100,8)
-        post_answers["LCM"] = a*b//math.gcd(a,b)
-        post_answers["GCD"] = math.gcd(a,b)
+        st.header("Post-Test (Simulation Allowed)")
 
-        st.subheader("Prime Factors")
-        n = st.number_input("Number for Prime Factorization",2,100,12)
-        temp=n
-        i=2
-        tree=[]
-        while temp>1:
-            if temp%i==0:
-                tree.append((temp,i,temp//i))
-                temp//=i
-            else:
-                i+=1
-        post_answers["PrimeFactors"] = tree
-
-        st.subheader("Ratios")
-        val1 = st.number_input("Value A for Ratio",1,100,4)
-        val2 = st.number_input("Value B for Ratio",1,100,6)
-        frac = Fraction(val1,val2)
-        post_answers["Ratio"] = f"{frac.numerator}:{frac.denominator}"
-
-        st.subheader("Simultaneous Equations")
-        a1 = st.number_input("a1", value=2)
-        b1 = st.number_input("b1", value=3)
-        c1 = st.number_input("c1", value=11)
-        a2 = st.number_input("a2", value=1)
-        b2 = st.number_input("b2", value=-1)
-        c2 = st.number_input("c2", value=1)
+        a = st.number_input("Number A",10,50,12)
+        b = st.number_input("Number B",10,50,18)
 
         if st.button("Submit Post-Test"):
-            if os.path.exists(st.session_state.learner_file):
-                with open(st.session_state.learner_file,"r") as f:
-                    learner_data = json.load(f)
-            learner_data["post_test"] = post_answers
-            learner_data["last_accessed"] = str(datetime.now())
-            with open(st.session_state.learner_file,"w") as f:
-                json.dump(learner_data,f)
-            st.success("Post-Test submitted! Simulations are now fully available.")
-            st.session_state.post_test_done = True
 
-            # Improvement Graph
-            st.subheader("📈 Improvement Graph")
+            correct_lcm = a*b//math.gcd(a,b)
+            correct_gcd = math.gcd(a,b)
+
+            score = 2
+
+            data["post_score"]=score
+
+            pre = data.get("pre_score",0)
+            improvement = score - pre
+            percent = (improvement/4)*100
+
+            data["history"].append({
+                "date": str(datetime.now()),
+                "pre": pre,
+                "post": score
+            })
+
+            with open(file,"w") as f:
+                json.dump(data,f)
+
+            st.subheader("📊 Results")
+            st.write(f"Pre: {pre}/4")
+            st.write(f"Post: {score}/4")
+            st.success(f"Improvement: {improvement}")
+            st.success(f"{percent:.1f}% Improvement")
+
+            if improvement>0:
+                st.success("🎯 Simulation improved your understanding!")
+
             fig,ax = plt.subplots()
-            pre_vals = [int(learner_data["pre_test"].get("LCM",0)),
-                        int(learner_data["pre_test"].get("GCD",0)),
-                        0,0]
-            post_vals = [post_answers["LCM"],post_answers["GCD"],0,0]
-            labels = ["LCM","GCD","Ratio","SimEq"]
-            ax.bar(np.arange(len(labels))-0.15, pre_vals, width=0.3, label="Pre-Test", color="red")
-            ax.bar(np.arange(len(labels))+0.15, post_vals, width=0.3, label="Post-Test", color="green")
-            ax.set_xticks(np.arange(len(labels)))
-            ax.set_xticklabels(labels)
-            ax.set_ylabel("Scores / Values")
-            ax.legend()
+            ax.bar(["Pre","Post"],[pre,score])
             st.pyplot(fig)
 
     # -------------------------
     # GENERAL TEST
     # -------------------------
     elif activity=="General Test":
-        st.header("📝 General Test (Simulations Allowed)")
-        st.info("Random questions across all topics; simulations are available.")
-        general_answers = {}
-        # LCM & GCD random question
-        a = random.randint(2,20)
-        b = random.randint(2,20)
-        general_answers["LCM"] = a*b//math.gcd(a,b)
-        general_answers["GCD"] = math.gcd(a,b)
-        st.write(f"Find LCM and GCD of {a} and {b}")
-        lcm_input = st.number_input("LCM Answer",value=0)
-        gcd_input = st.number_input("GCD Answer",value=0)
-        # Prime factor random question
-        pf_num = random.randint(10,50)
-        st.write(f"Prime factors of {pf_num}?")
-        pf_input = st.text_input("Enter as comma separated numbers","")
-        # Ratios
-        r1,r2 = random.randint(2,20), random.randint(2,20)
-        st.write(f"Simplify the ratio {r1}:{r2}")
-        ratio_input = st.text_input("Enter ratio as x:y","")
-        # Simultaneous equation
-        sa1,sb1,sc1 = random.randint(1,5),random.randint(1,5),random.randint(5,15)
-        sa2,sb2,sc2 = random.randint(1,5),random.randint(1,5),random.randint(5,15)
-        st.write(f"Solve equations: {sa1}x + {sb1}y = {sc1}, {sa2}x + {sb2}y = {sc2}")
-        se_x = st.number_input("x value",0)
-        se_y = st.number_input("y value",0)
+        st.header("General Test")
 
-        if st.button("Submit General Test"):
-            general_answers["LCM_user"]=lcm_input
-            general_answers["GCD_user"]=gcd_input
-            general_answers["PrimeFactors_user"]=pf_input
-            general_answers["Ratio_user"]=ratio_input
-            general_answers["SimEq_user"]={"x":se_x,"y":se_y}
-            if os.path.exists(st.session_state.learner_file):
-                with open(st.session_state.learner_file,"r") as f:
-                    learner_data = json.load(f)
-            learner_data["general_test"] = general_answers
-            learner_data["last_accessed"]=str(datetime.now())
-            with open(st.session_state.learner_file,"w") as f:
-                json.dump(learner_data,f)
-            st.success("General Test submitted!")
+        a,b = random.randint(5,30),random.randint(5,30)
+        st.write(f"LCM of {a} and {b}?")
+        ans = st.number_input("Answer")
+
+        if st.button("Submit"):
+            correct = a*b//math.gcd(a,b)
+            score = 1 if ans==correct else 0
+
+            data["general_score"]=score
+            with open(file,"w") as f:
+                json.dump(data,f)
+
+            st.success(f"Score: {score}/1")
 
     # -------------------------
     # SIMULATIONS
     # -------------------------
     elif activity=="Simulations":
-        st.header("🔬 Interactive Simulations")
-        sim_topic = st.selectbox("Choose Simulation", topics)
+
+        topic = st.selectbox("Choose Topic", ["LCM & GCD","Prime Factors","Ratios","Simultaneous Equations"])
+
         # LCM & GCD
-        if sim_topic=="LCM & GCD":
-            st.subheader("LCM & GCD Visualizer")
-            a = st.number_input("Number A",1,100,6,key="sim_a")
-            b = st.number_input("Number B",1,100,8,key="sim_b")
+        if topic=="LCM & GCD":
+            a = st.number_input("A",2,50)
+            b = st.number_input("B",2,50)
+
             gcd = math.gcd(a,b)
             lcm = a*b//gcd
-            st.success(f"GCD = {gcd}, LCM = {lcm}")
-            factors_a = [i for i in range(1,a+1) if a%i==0]
-            factors_b = [i for i in range(1,b+1) if b%i==0]
-            fig,ax = plt.subplots()
-            ax.scatter(factors_a,[1]*len(factors_a), color=COLORS["A"], label="Factors A")
-            ax.scatter(factors_b,[2]*len(factors_b), color=COLORS["B"], label="Factors B")
-            ax.scatter(lcm,2.5,color=COLORS["C"],s=120,label="LCM")
-            ax.scatter(gcd,0.5,color=COLORS["D"],s=120,label="GCD")
-            ax.grid(True)
-            ax.legend()
-            st.pyplot(fig)
+
+            st.write("Factors A:", [i for i in range(1,a+1) if a%i==0])
+            st.write("Factors B:", [i for i in range(1,b+1) if b%i==0])
+
+            st.write("Multiples A:", [a*i for i in range(1,6)])
+            st.write("Multiples B:", [b*i for i in range(1,6)])
+
+            st.success(f"GCD={gcd}, LCM={lcm}")
 
         # Prime Factors
-        elif sim_topic=="Prime Factors":
-            st.subheader("Prime Factorization Tree")
-            n = st.number_input("Enter number",2,100,12,key="pf")
+        elif topic=="Prime Factors":
+            n = st.number_input("Number",2,100)
             temp=n
             i=2
-            tree=[]
             while temp>1:
                 if temp%i==0:
-                    tree.append((temp,i,temp//i))
+                    st.write(f"{temp} → {i} × {temp//i}")
                     temp//=i
                 else:
                     i+=1
-            for parent,factor,remainder in tree:
-                st.write(f"{parent} → {factor} × {remainder}")
 
         # Ratios
-        elif sim_topic=="Ratios":
-            st.subheader("Simplified Ratios")
-            a = st.number_input("Value A",1,100,4,key="r_a")
-            b = st.number_input("Value B",1,100,6,key="r_b")
+        elif topic=="Ratios":
+            a = st.number_input("A",1,50)
+            b = st.number_input("B",1,50)
             frac = Fraction(a,b)
-            st.success(f"{a}:{b} → {frac.numerator}:{frac.denominator}")
+            st.success(f"{frac.numerator}:{frac.denominator}")
 
         # Simultaneous Equations
-        elif sim_topic=="Simultaneous Equations":
-            st.subheader("Simultaneous Equation Solver")
-            a1 = st.number_input("a1", value=2,key="sx1")
-            b1 = st.number_input("b1", value=3,key="sy1")
-            c1 = st.number_input("c1", value=11,key="sc1")
-            a2 = st.number_input("a2", value=1,key="sx2")
-            b2 = st.number_input("b2", value=-1,key="sy2")
-            c2 = st.number_input("c2", value=1,key="sc2")
-            if st.button("Solve Equations"):
-                det = a1*b2 - a2*b1
-                if det!=0:
+        elif topic=="Simultaneous Equations":
+
+            a1 = st.number_input("a1",2)
+            b1 = st.number_input("b1",3)
+            c1 = st.number_input("c1",11)
+            a2 = st.number_input("a2",1)
+            b2 = st.number_input("b2",-1)
+            c2 = st.number_input("c2",1)
+
+            method = st.selectbox("Method", ["Elimination","Substitution"])
+
+            st.latex(f"{a1}x + {b1}y = {c1}")
+            st.latex(f"{a2}x + {b2}y = {c2}")
+
+            if st.button("Solve Step-by-Step"):
+
+                if method=="Elimination":
+                    st.write("Step 1: Multiply equation 2")
+                    m = a1
+                    st.latex(f"{m*a2}x + {m*b2}y = {m*c2}")
+
+                    st.write("Step 2: Subtract")
+                    y = (c1*m - m*c2)/(b1*m - m*b2)
+                    st.write(f"y = {y}")
+
+                    x = (c1 - b1*y)/a1
+                    st.write(f"x = {x}")
+
+                else:
+                    st.write("Step 1: Make x subject")
+                    st.latex(f"x = ({c2} - {b2}y)/{a2}")
+
+                    det = a1*b2 - a2*b1
                     x = (c1*b2 - c2*b1)/det
                     y = (a1*c2 - a2*c1)/det
-                    st.success(f"x={x}, y={y}")
-                    x_vals = np.linspace(-10,10,400)
-                    y1_vals = (c1 - a1*x_vals)/b1
-                    y2_vals = (c2 - a2*x_vals)/b2
-                    fig,ax = plt.subplots()
-                    ax.plot(x_vals,y1_vals,color=COLORS["A"],label="Eq1")
-                    ax.plot(x_vals,y2_vals,color=COLORS["B"],label="Eq2")
-                    ax.scatter(x,y,color=COLORS["D"],s=120)
-                    ax.grid(True)
-                    ax.legend()
-                    st.pyplot(fig)
-                else:
-                    st.error("No solution exists")
+
+                    st.write(f"x = {x}, y = {y}")
 
 # =========================
 # TEACHER SECTION
 # =========================
 elif user_type=="Teacher":
     st.header("Teacher Section")
-    user = st.text_input("Username")
-    pwd = st.text_input("Password",type="password")
+
     code = st.text_input("Teacher Code")
-    if st.button("Login/Register"):
-        if user not in teacher_data:
-            teacher_data[user]=pwd
-            with open(teachers_file,"w") as f:
-                json.dump(teacher_data,f)
-            st.success("Registered")
-            st.session_state.teacher_logged_in=True
-        elif teacher_data[user]==pwd:
-            st.success("Logged in")
-            st.session_state.teacher_logged_in=True
-        else:
-            st.error("Wrong password")
-    if st.session_state.teacher_logged_in:
-        st.subheader("📬 Student Requests")
-        file=f"inbox/{code}.json"
+
+    st.subheader("📬 Student Requests")
+    file = f"inbox/{code}.json"
+
+    if os.path.exists(file):
+        with open(file) as f:
+            data = json.load(f)
+        for d in data:
+            st.write(d)
+    else:
+        st.info("No requests")
+
+    st.subheader("💡 Send Suggestion")
+    suggestion = st.text_area("Suggestion")
+
+    if st.button("Submit Suggestion"):
+        file="feedback/feedback.json"
+        data=[]
         if os.path.exists(file):
-            with open(file,"r") as f:
+            with open(file) as f:
                 data=json.load(f)
-            for d in data:
-                st.write(d["name"], "-", d["topic"])
-                st.write(d["message"])
-                st.write("------")
-        st.subheader("💡 Teacher Suggestions")
-        suggestion = st.text_area("Give a suggestion to improve the system")
-        if st.button("Submit Suggestion"):
-            file="feedback/feedback.json"
-            data=[]
-            if os.path.exists(file):
-                with open(file,"r") as f:
-                    data=json.load(f)
-            data.append({
-                "role":"Teacher",
-                "rating":None,
-                "comment":"",
-                "suggestion":suggestion
-            })
-            with open(file,"w") as f:
-                json.dump(data,f)
-            st.success("Suggestion sent to Editor!")
+        data.append({"role":"Teacher","suggestion":suggestion})
+        with open(file,"w") as f:
+            json.dump(data,f)
+        st.success("Sent to editor")
 
 # =========================
 # EDITOR SECTION
 # =========================
 elif user_type=="Editor":
     st.header("Editor Section")
-    password = st.text_input("Enter Password", type="password")
-    if password == EDITOR_PASSWORD:
-        st.session_state.editor_logged_in = True
-    if st.session_state.editor_logged_in:
+
+    password = st.text_input("Password", type="password")
+
+    if password=="alex":
         st.success("Access Granted")
-        st.subheader("⭐ All Feedback (Editor Only)")
+
+        st.subheader("📊 Feedback")
         file="feedback/feedback.json"
+
         if os.path.exists(file):
-            with open(file,"r") as f:
+            with open(file) as f:
                 data=json.load(f)
             for d in data:
-                st.write("Role:", d["role"])
-                st.write("Rating:", d["rating"])
-                st.write("Comment:", d["comment"])
-                st.write("Suggestion:", d["suggestion"])
-                st.write("------")
-        else:
-            st.info("No feedback yet")
-        # Special Game Lock
-        if not st.session_state.special_verified:
-            st.subheader("🔐 Answer to Access Games")
-            answer = st.text_input("Who is my chizi?")
-            if st.button("Submit Answer"):
-                if answer.lower().strip() == "riya":
-                    st.session_state.special_verified = True
-                    st.success("Access granted 🎮")
-                else:
-                    st.error("Wrong answer")
-        else:
-            st.subheader("🎮 Mini Games")
+                st.write(d)
+
+        st.subheader("🔐 Secret Access")
+        answer = st.text_input("Who is my chizi?")
+
+        if answer.lower()=="riya":
+            st.success("Unlocked 🎮")
             st.markdown("[Play Game](https://www.hero-wars.com/?hl=en)")
