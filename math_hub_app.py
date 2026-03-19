@@ -66,7 +66,7 @@ else:
 GITHUB_TOKEN = st.secrets.get("GITHUB_TOKEN","")
 OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY","")
 openai.api_key = OPENAI_API_KEY
-EDITOR_PASSWORD = "aceluffy"
+EDITOR_PASSWORD = "alex"
 
 # -------------------------
 # USER TYPE
