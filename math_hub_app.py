@@ -4,21 +4,41 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import json
-import random
 from fractions import Fraction
 from github import Github
 import openai
 
 # -------------------------
-# PAGE CONFIG
+# PAGE SETTINGS
 # -------------------------
 st.set_page_config(page_title="Interactive Math Hub", page_icon="📊")
 st.title("📊 Interactive Math Hub")
 
 # -------------------------
+# COLOR-BLIND MODE
+# -------------------------
+color_blind = st.toggle("🎨 Enable Color-Blind Mode")
+
+if color_blind:
+    COLORS = {
+        "A": "black",
+        "B": "gray",
+        "C": "blue",
+        "D": "purple"
+    }
+else:
+    COLORS = {
+        "A": "orange",
+        "B": "blue",
+        "C": "green",
+        "D": "red"
+    }
+
+# -------------------------
 # CREATE FOLDERS
 # -------------------------
-for folder in ["submissions","approved","inbox","feedback"]:
+folders = ["submissions","approved","inbox","feedback"]
+for folder in folders:
     os.makedirs(folder, exist_ok=True)
 
 # -------------------------
@@ -30,14 +50,6 @@ if "editor_logged_in" not in st.session_state:
     st.session_state.editor_logged_in = False
 if "special_verified" not in st.session_state:
     st.session_state.special_verified = False
-if "pre_questions" not in st.session_state:
-    st.session_state.pre_questions = []
-if "post_questions" not in st.session_state:
-    st.session_state.post_questions = []
-if "pre_score" not in st.session_state:
-    st.session_state.pre_score = None
-if "post_score" not in st.session_state:
-    st.session_state.post_score = None
 
 # -------------------------
 # LOAD TEACHERS
@@ -62,45 +74,52 @@ EDITOR_PASSWORD = "aceluffy"
 user_type = st.radio("I am a:", ["Learner","Teacher","Editor"])
 
 # =====================================================
-# HELPER FUNCTIONS
+# TOPICS
 # =====================================================
-def lcm(a,b):
-    return abs(a*b)//math.gcd(a,b)
-
-def generate_questions():
-    qs=[]
-    for _ in range(5):
-        a=random.randint(2,12)
-        b=random.randint(2,12)
-        if random.choice(["LCM","GCD"])=="LCM":
-            qs.append((f"LCM of {a} and {b}", lcm(a,b)))
-        else:
-            qs.append((f"GCD of {a} and {b}", math.gcd(a,b)))
-    return qs
+topics = ["LCM & GCD","Prime Factors","Ratios","Simultaneous Equations"]
 
 # =====================================================
-# LEARNER
+# LEARNER SECTION
 # =====================================================
-if user_type=="Learner":
+if user_type == "Learner":
     st.header("Learner Section")
+    topic = st.sidebar.selectbox("Choose Topic", topics)
 
-    topic = st.sidebar.selectbox("Choose Topic",
-    ["LCM & GCD","Prime Factors","Ratios","Simultaneous Equations","Tests"])
+    # -------------------------
+    # LCM & GCD
+    # -------------------------
+    if topic == "LCM & GCD":
+        st.subheader("LCM & GCD Visualizer")
+        a = st.number_input("Number A",1,100,6)
+        b = st.number_input("Number B",1,100,8)
 
-    # ---------------- LCM & GCD ----------------
-    if topic=="LCM & GCD":
-        a=st.number_input("A",1,100,6)
-        b=st.number_input("B",1,100,8)
-
-        gcd=math.gcd(a,b)
-        lcm_val=a*b//gcd
+        gcd = math.gcd(a,b)
+        lcm = a*b//gcd
 
         st.success(f"GCD = {gcd}")
-        st.success(f"LCM = {lcm_val}")
+        st.success(f"LCM = {lcm}")
 
-    # ---------------- PRIME ----------------
-    elif topic=="Prime Factors":
-        n=st.number_input("Number",2,100,12)
+        factors_a = [i for i in range(1,a+1) if a%i==0]
+        factors_b = [i for i in range(1,b+1) if b%i==0]
+
+        fig,ax = plt.subplots()
+        ax.scatter(factors_a,[1]*len(factors_a), color=COLORS["A"], label="Factors A")
+        ax.scatter(factors_b,[2]*len(factors_b), color=COLORS["B"], label="Factors B")
+
+        ax.scatter(lcm,2.5,color=COLORS["C"],s=120,label="LCM")
+        ax.scatter(gcd,0.5,color=COLORS["D"],s=120,label="GCD")
+
+        ax.grid(True)
+        ax.legend()
+        st.pyplot(fig)
+
+    # -------------------------
+    # PRIME FACTORS TREE
+    # -------------------------
+    elif topic == "Prime Factors":
+        st.subheader("Prime Factorization Tree")
+        n = st.number_input("Enter number",2,100,12)
+
         temp=n
         i=2
         tree=[]
@@ -111,168 +130,220 @@ if user_type=="Learner":
             else:
                 i+=1
 
-        st.markdown("### Factor Tree")
-        for p,f,r in tree:
-            st.write(f"{p} → {f} × {r}")
+        for parent,factor,remainder in tree:
+            st.write(f"{parent} → {factor} × {remainder}")
 
-    # ---------------- RATIOS ----------------
-    elif topic=="Ratios":
-        a=st.number_input("A",1,100,4)
-        b=st.number_input("B",1,100,6)
-        frac=Fraction(a,b)
-        st.success(f"Simplified: {frac.numerator}:{frac.denominator}")
+    # -------------------------
+    # RATIOS
+    # -------------------------
+    elif topic == "Ratios":
+        st.subheader("Simplified Ratios")
+        a = st.number_input("Value A",1,100,4)
+        b = st.number_input("Value B",1,100,6)
 
-    # ---------------- SIMULTANEOUS ----------------
-    elif topic=="Simultaneous Equations":
-        a1=st.number_input("a1",2)
-        b1=st.number_input("b1",3)
-        c1=st.number_input("c1",11)
-        a2=st.number_input("a2",1)
-        b2=st.number_input("b2",-1)
-        c2=st.number_input("c2",1)
+        frac = Fraction(a,b)
+        st.success(f"{a}:{b} → {frac.numerator}:{frac.denominator}")
+
+    # -------------------------
+    # SIMULTANEOUS EQUATIONS
+    # -------------------------
+    elif topic == "Simultaneous Equations":
+        st.subheader("Simultaneous Equation Solver")
+
+        a1 = st.number_input("a1", value=2)
+        b1 = st.number_input("b1", value=3)
+        c1 = st.number_input("c1", value=11)
+
+        a2 = st.number_input("a2", value=1)
+        b2 = st.number_input("b2", value=-1)
+        c2 = st.number_input("c2", value=1)
 
         if st.button("Solve"):
-            det=a1*b2-a2*b1
-            if det!=0:
-                x=(c1*b2-c2*b1)/det
-                y=(a1*c2-a2*c1)/det
+            det = a1*b2 - a2*b1
+
+            if det !=0:
+                x = (c1*b2 - c2*b1)/det
+                y = (a1*c2 - a2*c1)/det
+
                 st.success(f"x={x}, y={y}")
 
-    # ---------------- TEST SYSTEM ----------------
-    elif topic=="Tests":
-        tab1,tab2,tab3=st.tabs(["Pre-Test","Post-Test","Dashboard"])
+                x_vals = np.linspace(-10,10,400)
+                y1_vals = (c1 - a1*x_vals)/b1
+                y2_vals = (c2 - a2*x_vals)/b2
 
-        with tab1:
-            if st.button("Generate Pre-Test"):
-                st.session_state.pre_questions=generate_questions()
+                fig,ax = plt.subplots()
+                ax.plot(x_vals,y1_vals,color=COLORS["A"],label="Eq1")
+                ax.plot(x_vals,y2_vals,color=COLORS["B"],label="Eq2")
+                ax.scatter(x,y,color=COLORS["D"],s=120)
 
-            for i,(q,_) in enumerate(st.session_state.pre_questions):
-                st.session_state[f"pre_{i}"]=st.number_input(q,key=f"pre{i}")
+                ax.grid(True)
+                ax.legend()
+                st.pyplot(fig)
 
-            if st.button("Submit Pre"):
-                score=0
-                for i,(q,a) in enumerate(st.session_state.pre_questions):
-                    if st.session_state[f"pre_{i}"]==a:
-                        score+=6
-                st.session_state.pre_score=score
-                st.success(f"Score: {score}/30")
+            else:
+                st.error("No solution")
 
-        with tab2:
-            if st.button("Generate Post-Test"):
-                st.session_state.post_questions=generate_questions()
+    # -------------------------
+    # INBOX
+    # -------------------------
+    st.subheader("📥 Send Request to Teacher")
 
-            for i,(q,_) in enumerate(st.session_state.post_questions):
-                st.session_state[f"post_{i}"]=st.number_input(q,key=f"post{i}")
+    name = st.text_input("Your Name")
+    code = st.text_input("Teacher Code")
+    topic_req = st.text_input("Topic")
+    msg = st.text_area("Message")
 
-            if st.button("Submit Post"):
-                score=0
-                for i,(q,a) in enumerate(st.session_state.post_questions):
-                    if st.session_state[f"post_{i}"]==a:
-                        score+=6
-                st.session_state.post_score=score
-                st.success(f"Score: {score}/30")
+    if st.button("Send Request"):
+        if name and code and msg:
+            file = f"inbox/{code}.json"
+            data = []
+            if os.path.exists(file):
+                with open(file,"r") as f:
+                    data=json.load(f)
 
-        with tab3:
-            if st.session_state.pre_score and st.session_state.post_score:
-                st.write("Improvement:", st.session_state.post_score - st.session_state.pre_score)
+            data.append({"name":name,"topic":topic_req,"message":msg})
 
-    # ---------------- INBOX ----------------
-    st.subheader("📥 Send Request")
-    name=st.text_input("Name")
-    code=st.text_input("Teacher Code")
-    msg=st.text_area("Message")
+            with open(file,"w") as f:
+                json.dump(data,f)
 
-    if st.button("Send"):
-        file=f"inbox/{code}.json"
-        data=[]
-        if os.path.exists(file):
-            data=json.load(open(file))
-        data.append({"name":name,"message":msg})
-        json.dump(data,open(file,"w"))
-        st.success("Sent!")
+            st.success("Sent!")
 
-    # ---------------- FEEDBACK ----------------
-    st.subheader("⭐ Rate App")
-    rating=st.slider("Rating",1,5,3)
-    comment=st.text_area("Comment")
+    # -------------------------
+    # FEEDBACK (GOES TO EDITOR)
+    # -------------------------
+    st.subheader("⭐ Rate This App")
+
+    rating = st.slider("Rate (1-5)",1,5,3)
+    comment = st.text_area("Comment")
+    suggestion = st.text_area("Suggestion")
 
     if st.button("Submit Feedback"):
         file="feedback/feedback.json"
         data=[]
         if os.path.exists(file):
-            data=json.load(open(file))
-        data.append({"rating":rating,"comment":comment})
-        json.dump(data,open(file,"w"))
-        st.success("Thanks!")
+            with open(file,"r") as f:
+                data=json.load(f)
+
+        data.append({
+            "role":"Learner",
+            "rating":rating,
+            "comment":comment,
+            "suggestion":suggestion
+        })
+
+        with open(file,"w") as f:
+            json.dump(data,f)
+
+        st.success("Feedback sent to Editor!")
 
 # =====================================================
-# TEACHER
+# TEACHER SECTION
 # =====================================================
 elif user_type=="Teacher":
-    st.header("Teacher")
+    st.header("Teacher Section")
 
-    user=st.text_input("Username")
-    pwd=st.text_input("Password",type="password")
-    code=st.text_input("Code")
+    user = st.text_input("Username")
+    pwd = st.text_input("Password",type="password")
+    code = st.text_input("Teacher Code")
 
-    if st.button("Login"):
+    if st.button("Login/Register"):
         if user not in teacher_data:
             teacher_data[user]=pwd
-            json.dump(teacher_data,open("teachers.json","w"))
-        elif teacher_data[user]!=pwd:
-            st.error("Wrong password")
-        else:
+            with open("teachers.json","w") as f:
+                json.dump(teacher_data,f)
+            st.success("Registered")
             st.session_state.teacher_logged_in=True
+        elif teacher_data[user]==pwd:
+            st.success("Logged in")
+            st.session_state.teacher_logged_in=True
+        else:
+            st.error("Wrong password")
 
     if st.session_state.teacher_logged_in:
-        st.subheader("Requests")
+
+        st.subheader("📬 Student Requests")
         file=f"inbox/{code}.json"
         if os.path.exists(file):
-            data=json.load(open(file))
+            with open(file,"r") as f:
+                data=json.load(f)
             for d in data:
-                st.write(d)
+                st.write(d["name"], "-", d["topic"])
+                st.write(d["message"])
+                st.write("------")
 
-        st.subheader("Feedback")
-        file="feedback/feedback.json"
-        if os.path.exists(file):
-            data=json.load(open(file))
-            avg=sum(d["rating"] for d in data)/len(data)
-            st.success(f"Average: {round(avg,2)} ⭐")
+        # -------------------------
+        # TEACHER SUGGESTIONS
+        # -------------------------
+        st.subheader("💡 Teacher Suggestions")
+
+        suggestion = st.text_area("Give a suggestion to improve the system")
+
+        if st.button("Submit Suggestion"):
+            file="feedback/feedback.json"
+            data=[]
+            if os.path.exists(file):
+                with open(file,"r") as f:
+                    data=json.load(f)
+
+            data.append({
+                "role":"Teacher",
+                "rating":None,
+                "comment":"",
+                "suggestion":suggestion
+            })
+
+            with open(file,"w") as f:
+                json.dump(data,f)
+
+            st.success("Suggestion sent to Editor!")
 
 # =====================================================
-# EDITOR
+# EDITOR SECTION
 # =====================================================
 elif user_type=="Editor":
-    pwd=st.text_input("Password",type="password")
-    if pwd==EDITOR_PASSWORD:
-        st.session_state.editor_logged_in=True
+    st.header("Editor Section")
+
+    password = st.text_input("Enter Password", type="password")
+
+    if password == EDITOR_PASSWORD:
+        st.session_state.editor_logged_in = True
 
     if st.session_state.editor_logged_in:
+
         st.success("Access Granted")
 
-        if not st.session_state.special_verified:
-            ans=st.text_input("who is my chizi?")
-            if st.button("Submit"):
-                if ans=="riya":
-                    st.session_state.special_verified=True
+        # -------------------------
+        # VIEW ALL FEEDBACK
+        # -------------------------
+        st.subheader("⭐ All Feedback (Editor Only)")
 
+        file="feedback/feedback.json"
+        if os.path.exists(file):
+            with open(file,"r") as f:
+                data=json.load(f)
+
+            for d in data:
+                st.write("Role:", d["role"])
+                st.write("Rating:", d["rating"])
+                st.write("Comment:", d["comment"])
+                st.write("Suggestion:", d["suggestion"])
+                st.write("------")
         else:
+            st.info("No feedback yet")
+
+        # -------------------------
+        # SPECIAL GAME LOCK
+        # -------------------------
+        if not st.session_state.special_verified:
+            st.subheader("🔐 Answer to Access Games")
+            answer = st.text_input("who is my chizi?")
+
+            if st.button("Submit Answer"):
+                if answer.lower().strip() == "riya":
+                    st.session_state.special_verified = True
+                    st.success("Access granted 🎮")
+                else:
+                    st.error("Wrong answer")
+        else:
+            st.subheader("🎮 Mini Games")
             st.markdown("[Play Game](https://www.hero-wars.com/?hl=en)")
-
-        st.subheader("Topic Management")
-        repo_name=st.text_input("Repo")
-
-        for file in os.listdir("submissions"):
-            data=json.load(open(f"submissions/{file}"))
-            st.write(data)
-
-            if st.button(f"Generate {file}"):
-                if OPENAI_API_KEY:
-                    response=openai.Completion.create(
-                        model="text-davinci-003",
-                        prompt=data["topic_description"],
-                        max_tokens=300
-                    )
-                    data["code"]=response.choices[0].text
-                    json.dump(data,open(f"submissions/{file}","w"))
-                    st.code(data["code"])
