@@ -6,8 +6,8 @@ import os
 import json
 from fractions import Fraction
 from datetime import datetime
-import random
 import uuid
+import random
 
 # -------------------------
 # PAGE SETTINGS
@@ -28,31 +28,53 @@ for key in ["learner_name","teacher_logged_in","editor_logged_in","special_verif
         st.session_state[key] = False
 
 # -------------------------
-# SIDEBAR
+# COLOR SETTINGS
 # -------------------------
-st.sidebar.title("Login")
-user_type = st.sidebar.radio("I am:", ["Learner","Teacher","Editor"])
 color_blind = st.sidebar.checkbox("🎨 Color-Blind Mode")
 COLORS = {"A":"black","B":"gray","C":"blue","D":"purple"} if color_blind else {"A":"orange","B":"blue","C":"green","D":"red"}
 
 # -------------------------
-# TEACHER LOGIN / CODE GENERATION
+# WELCOME PAGE
+# -------------------------
+st.title("🎉 Welcome to the Interactive Math Hub!")
+st.write("""
+Explore **LCM, GCD, Ratios, Prime Factors, and Simultaneous Equations** interactively.  
+Use the sidebar to **login as Learner, Teacher, or Editor**.
+""")
+
+# -------------------------
+# SIDEBAR LOGIN
+# -------------------------
+st.sidebar.title("Login")
+user_type = st.sidebar.radio("I am:", ["Learner","Teacher","Editor"])
+
+# -------------------------
+# TEACHER LOGIN / CODE
 # -------------------------
 if user_type=="Teacher":
     st.header("Teacher Section")
     teacher_name = st.text_input("Teacher Name")
     teacher_pwd = st.text_input("Password", type="password")
+    
     if st.button("Login/Register"):
         if teacher_name and teacher_pwd:
             st.session_state.teacher_logged_in = True
             st.success(f"Welcome {teacher_name}!")
-            # Generate unique teacher code
-            teacher_code = str(uuid.uuid4())[:6].upper()
-            code_file = f"teacher_codes/{teacher_name}.json"
-            with open(code_file,"w") as f:
-                json.dump({"teacher_code":teacher_code,"name":teacher_name,"date":str(datetime.now())},f)
-            st.info(f"Your Teacher Code: **{teacher_code}** (Give this to your learners)")
 
+            # Persist teacher code
+            code_file = f"teacher_codes/{teacher_name}.json"
+            if os.path.exists(code_file):
+                with open(code_file,"r") as f:
+                    tdata = json.load(f)
+                teacher_code = tdata["teacher_code"]
+                st.info(f"Your previously generated Teacher Code: **{teacher_code}**")
+            else:
+                teacher_code = str(uuid.uuid4())[:6].upper()
+                with open(code_file,"w") as f:
+                    json.dump({"teacher_code":teacher_code,"name":teacher_name,"date":str(datetime.now())},f)
+                st.info(f"Your Teacher Code: **{teacher_code}** (Give this to your learners)")
+
+            # Feedback area
             st.subheader("💡 Send Suggestion")
             suggestion = st.text_area("Suggestion to Editor")
             if st.button("Submit Suggestion"):
@@ -128,13 +150,6 @@ if user_type=="Learner" and st.session_state.learner_name:
             with open(file,"w") as f:
                 json.dump(data,f)
             st.success("Pre-Test submitted! ✅")
-            
-            # Step-by-step display
-            st.subheader("Step-by-Step Solutions:")
-            st.write("**LCM:** 12 → [1,2,3,4,6,12], 18 → [1,2,3,6,9,18], LCM = 36")
-            st.write("**GCD:** Common factors: [1,2,3,6], GCD = 12")
-            st.write("**Ratio:** 12:18 → Simplify by GCD 6 → 2:3")
-            st.write("**SimEq:** x+y=4, x-y=2 → Solve: x=(4+2)/2=3, y=1")
 
     # -------------------------
     # POST TEST
@@ -142,13 +157,11 @@ if user_type=="Learner" and st.session_state.learner_name:
     elif activity=="Post-Test":
         st.header("📝 Post-Test (Simulations Allowed)")
 
-        # LCM & GCD
         a = st.number_input("Number A for LCM & GCD",1,100,6)
         b = st.number_input("Number B for LCM & GCD",1,100,8)
+        lcm = a*b//math.gcd(a,b)
         gcd = math.gcd(a,b)
-        lcm = a*b//gcd
 
-        # Prime factors
         n = st.number_input("Number for Prime Factorization",2,100,12)
         temp = n
         i=2
@@ -160,12 +173,10 @@ if user_type=="Learner" and st.session_state.learner_name:
             else:
                 i+=1
 
-        # Ratios
         val1 = st.number_input("Value A for Ratio",1,100,4)
         val2 = st.number_input("Value B for Ratio",1,100,6)
         frac = Fraction(val1,val2)
 
-        # Simultaneous equations
         a1 = st.number_input("a1",2)
         b1 = st.number_input("b1",3)
         c1 = st.number_input("c1",11)
@@ -182,20 +193,8 @@ if user_type=="Learner" and st.session_state.learner_name:
                 json.dump(data,f)
             st.success("Post-Test submitted! ✅")
 
-            # Step-by-step
-            st.subheader("Step-by-Step Solutions:")
-            st.write(f"**LCM:** gcd({a},{b})={gcd} → lcm({a},{b})={lcm}")
-            st.write(f"**Prime Factors of {n}:** {tree}")
-            st.write(f"**Ratio:** {val1}:{val2} → {frac.numerator}:{frac.denominator}")
-            det = a1*b2 - a2*b1
-            if det != 0:
-                x = (c1*b2 - c2*b1)/det
-                y = (a1*c2 - a2*c1)/det
-                st.write(f"**Simultaneous Equations:** x={x}, y={y}")
-            else:
-                st.write("**Simultaneous Equations:** No solution")
-
             # Improvement Graph
+            st.subheader("📊 Improvement Graph")
             pre_vals = [int(data.get("pre_test",{}).get("LCM",0)),int(data.get("pre_test",{}).get("GCD",0)),0,0]
             post_vals = [lcm,gcd,0,0]
             labels = ["LCM","GCD","Ratio","SimEq"]
@@ -224,7 +223,6 @@ if user_type=="Learner" and st.session_state.learner_name:
 
             factors_a = [i for i in range(1,a+1) if a%i==0]
             factors_b = [i for i in range(1,b+1) if b%i==0]
-
             multiples_a = [a*i for i in range(1,6)]
             multiples_b = [b*i for i in range(1,6)]
 
@@ -234,35 +232,18 @@ if user_type=="Learner" and st.session_state.learner_name:
             st.write("Multiples B:", multiples_b)
             st.success(f"GCD={gcd}, LCM={lcm}")
 
-            if st.button("Show Step-by-Step LCM & GCD"):
-                st.subheader("Step-by-Step Factors & LCM/GCD")
-                st.write(f"Factors of A ({a}): {factors_a}")
-                st.write(f"Factors of B ({b}): {factors_b}")
-                st.write(f"GCD calculation: gcd({a},{b}) = {gcd}")
-                st.write(f"LCM calculation: lcm({a},{b}) = {lcm}")
-
             fig,ax = plt.subplots()
             ax.scatter(factors_a,[1]*len(factors_a), label="Factors A", color=COLORS["A"])
             ax.scatter(factors_b,[2]*len(factors_b), label="Factors B", color=COLORS["B"])
             ax.scatter(multiples_a,[1.5]*len(multiples_a), label="Multiples A", color=COLORS["C"])
             ax.scatter(multiples_b,[2.5]*len(multiples_b), label="Multiples B", color=COLORS["D"])
-            for i,val in enumerate(factors_a): ax.text(val,1,str(val))
-            for i,val in enumerate(factors_b): ax.text(val,2,str(val))
+            for i,val in enumerate(factors_a):
+                ax.text(val,1,str(val))
+            for i,val in enumerate(factors_b):
+                ax.text(val,2,str(val))
             ax.grid(True)
             ax.legend()
             st.pyplot(fig)
-
-        # Ratio Step-by-Step
-        elif topic=="Ratios":
-            val1 = st.number_input("Value A",1,100,4)
-            val2 = st.number_input("Value B",1,100,6)
-            frac = Fraction(val1,val2)
-            st.success(f"Simplified Ratio: {frac.numerator}:{frac.denominator}")
-            if st.button("Show Step-by-Step Ratio"):
-                st.subheader("Step-by-Step Simplification")
-                st.write(f"Original Ratio: {val1}:{val2}")
-                st.write(f"GCD of {val1} and {val2} is {math.gcd(val1,val2)}")
-                st.write(f"Simplified: {frac.numerator}:{frac.denominator}")
 
         # Simultaneous Equations Solver
         elif topic=="Simultaneous Equations":
@@ -276,18 +257,14 @@ if user_type=="Learner" and st.session_state.learner_name:
             st.latex(f"{a1}x + {b1}y = {c1}")
             st.latex(f"{a2}x + {b2}y = {c2}")
 
-            if st.button("Solve Equations Step-by-Step"):
+            if st.button("Solve Equations"):
                 det = a1*b2 - a2*b1
                 if det !=0:
                     x = (c1*b2 - c2*b1)/det
                     y = (a1*c2 - a2*c1)/det
                     st.success(f"Intersection at x={x}, y={y}")
 
-                    st.subheader("Step-by-Step Solution")
-                    st.write("Using Determinant Method:")
-                    st.write(f"x = (c1*b2 - c2*b1)/det = ({c1}*{b2} - {c2}*{b1})/{det} = {x}")
-                    st.write(f"y = (a1*c2 - a2*c1)/det = ({a1}*{c2} - {a2}*{c1})/{det} = {y}")
-
+                    # Graph with clearer intersection
                     x_vals = np.linspace(min(x-5,0), max(x+5,10),400)
                     y1_vals = (c1 - a1*x_vals)/b1
                     y2_vals = (c2 - a2*x_vals)/b2
@@ -309,7 +286,6 @@ elif user_type=="Editor":
     password = st.text_input("Password", type="password")
     if password=="alex":
         st.success("Access Granted")
-        st.subheader("📊 Feedback")
         file="feedback/feedback.json"
         if os.path.exists(file):
             with open(file) as f:
