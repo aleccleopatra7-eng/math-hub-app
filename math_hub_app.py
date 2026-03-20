@@ -6,8 +6,8 @@ import os
 import json
 from fractions import Fraction
 from datetime import datetime
-import uuid
 import random
+import uuid
 
 # -------------------------
 # PAGE SETTINGS
@@ -28,28 +28,31 @@ for key in ["learner_name","teacher_logged_in","editor_logged_in","special_verif
         st.session_state[key] = False
 
 # -------------------------
-# COLOR SETTINGS
+# SIDEBAR
 # -------------------------
+st.sidebar.title("Login")
+user_type = st.sidebar.radio("I am:", ["Learner","Teacher","Editor"])
 color_blind = st.sidebar.checkbox("🎨 Color-Blind Mode")
 COLORS = {"A":"black","B":"gray","C":"blue","D":"purple"} if color_blind else {"A":"orange","B":"blue","C":"green","D":"red"}
 
 # -------------------------
 # WELCOME PAGE
 # -------------------------
-st.title("🎉 Welcome to the Interactive Math Hub!")
-st.write("""
-Explore **LCM, GCD, Ratios, Prime Factors, and Simultaneous Equations** interactively.  
-Use the sidebar to **login as Learner, Teacher, or Editor**.
-""")
+st.markdown("""
+<h1 style='text-align:center; color:orange; animation: fadeIn 2s;'>
+🎉 Welcome to My Math Interactive Hub
+</h1>
+<p style='text-align:center;'>Learn, Practice, and Improve your Math skills!</p>
+<style>
+@keyframes fadeIn {
+    from {opacity: 0; transform: scale(0.5);}
+    to {opacity: 1; transform: scale(1);}
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------------
-# SIDEBAR LOGIN
-# -------------------------
-st.sidebar.title("Login")
-user_type = st.sidebar.radio("I am:", ["Learner","Teacher","Editor"])
-
-# -------------------------
-# TEACHER LOGIN / CODE
+# TEACHER LOGIN / CODE GENERATION
 # -------------------------
 if user_type=="Teacher":
     st.header("Teacher Section")
@@ -61,18 +64,18 @@ if user_type=="Teacher":
             st.session_state.teacher_logged_in = True
             st.success(f"Welcome {teacher_name}!")
 
-            # Persist teacher code
+            # Persistent teacher code
             code_file = f"teacher_codes/{teacher_name}.json"
             if os.path.exists(code_file):
                 with open(code_file,"r") as f:
                     tdata = json.load(f)
-                teacher_code = tdata["teacher_code"]
-                st.info(f"Your previously generated Teacher Code: **{teacher_code}**")
+                    teacher_code = tdata["teacher_code"]
             else:
                 teacher_code = str(uuid.uuid4())[:6].upper()
                 with open(code_file,"w") as f:
                     json.dump({"teacher_code":teacher_code,"name":teacher_name,"date":str(datetime.now())},f)
-                st.info(f"Your Teacher Code: **{teacher_code}** (Give this to your learners)")
+            
+            st.info(f"Your Teacher Code: **{teacher_code}** (Give this to your learners)")
 
             # Feedback area
             st.subheader("💡 Send Suggestion")
@@ -123,28 +126,29 @@ if user_type=="Learner" and st.session_state.learner_name:
         with open(file,"w") as f:
             json.dump(data,f)
 
-    pre_done = bool(data.get("pre_test"))
-    post_done = bool(data.get("post_test"))
+    pre_done = bool(data["pre_test"])
+    post_done = bool(data["post_test"])
+    general_done = bool(data["general_test"])
 
     options = ["Simulations"]
-    if not pre_done or not post_done:
-        options += ["Pre-Test","Post-Test"]
-    else:
+    if not pre_done:
+        options += ["Pre-Test"]
+    if not post_done:
+        options += ["Post-Test"]
+    if pre_done and post_done:
         options += ["General Test"]
 
     activity = st.sidebar.radio("Activities", options)
 
     # -------------------------
-    # PRE TEST
+    # PRE TEST (Hard Questions, 15)
     # -------------------------
     if activity=="Pre-Test":
-        st.header("📝 Pre-Test (No Simulation)")
+        st.header("📝 Pre-Test (Hard, No Multiple Choice)")
         answers = {}
-        answers["LCM"] = st.radio("LCM of 12 and 18?", [36,54,72,24])
-        answers["GCD"] = st.radio("GCD of 24 and 36?", [12,6,18,24])
-        answers["Ratio"] = st.radio("Simplify 12:18", ["2:3","3:4","2:2","4:6"])
-        answers["SimEq"] = st.radio("Solve x+y=4, x-y=2 → x?", [1,2,3,4])
-
+        for i in range(1,16):
+            q = st.number_input(f"Question {i}: Enter your answer",value=0,key=f"pre{i}")
+            answers[f"Q{i}"] = q
         if st.button("Submit Pre-Test"):
             data["pre_test"] = answers
             with open(file,"w") as f:
@@ -152,58 +156,105 @@ if user_type=="Learner" and st.session_state.learner_name:
             st.success("Pre-Test submitted! ✅")
 
     # -------------------------
-    # POST TEST
+    # POST TEST (Simulation Usage)
     # -------------------------
     elif activity=="Post-Test":
         st.header("📝 Post-Test (Simulations Allowed)")
 
-        a = st.number_input("Number A for LCM & GCD",1,100,6)
-        b = st.number_input("Number B for LCM & GCD",1,100,8)
+        st.subheader("LCM & GCD")
+        a = st.number_input("Number A",1,50,key="postA")
+        b = st.number_input("Number B",1,50,key="postB")
         lcm = a*b//math.gcd(a,b)
         gcd = math.gcd(a,b)
+        st.write("Use simulation if needed!")
 
-        n = st.number_input("Number for Prime Factorization",2,100,12)
-        temp = n
-        i=2
-        tree=[]
-        while temp>1:
-            if temp%i==0:
-                tree.append((temp,i,temp//i))
-                temp//=i
-            else:
-                i+=1
-
-        val1 = st.number_input("Value A for Ratio",1,100,4)
-        val2 = st.number_input("Value B for Ratio",1,100,6)
+        st.subheader("Ratios")
+        val1 = st.number_input("Value A",1,50,key="postR1")
+        val2 = st.number_input("Value B",1,50,key="postR2")
         frac = Fraction(val1,val2)
 
-        a1 = st.number_input("a1",2)
-        b1 = st.number_input("b1",3)
-        c1 = st.number_input("c1",11)
-        a2 = st.number_input("a2",1)
-        b2 = st.number_input("b2",-1)
-        c2 = st.number_input("c2",1)
+        st.subheader("Simultaneous Equations")
+        a1 = st.number_input("a1",1,key="posta1")
+        b1 = st.number_input("b1",1,key="postb1")
+        c1 = st.number_input("c1",1,key="postc1")
+        a2 = st.number_input("a2",1,key="posta2")
+        b2 = st.number_input("b2",1,key="postb2")
+        c2 = st.number_input("c2",1,key="postc2")
 
         if st.button("Submit Post-Test"):
             data["post_test"] = {
-                "LCM":lcm,"GCD":gcd,"PrimeFactors":tree,"Ratio":f"{frac.numerator}:{frac.denominator}",
+                "LCM":lcm,"GCD":gcd,
+                "Ratio":f"{frac.numerator}:{frac.denominator}",
                 "SimEq":{"eq1":[a1,b1,c1],"eq2":[a2,b2,c2]}
             }
             with open(file,"w") as f:
                 json.dump(data,f)
-            st.success("Post-Test submitted! ✅")
+            st.success("Post-Test submitted ✅")
 
             # Improvement Graph
-            st.subheader("📊 Improvement Graph")
-            pre_vals = [int(data.get("pre_test",{}).get("LCM",0)),int(data.get("pre_test",{}).get("GCD",0)),0,0]
-            post_vals = [lcm,gcd,0,0]
             labels = ["LCM","GCD","Ratio","SimEq"]
-            fig,ax = plt.subplots()
-            ax.bar(np.arange(len(labels))-0.15, pre_vals, width=0.3,label="Pre-Test", color="red")
-            ax.bar(np.arange(len(labels))+0.15, post_vals, width=0.3,label="Post-Test", color="green")
+            pre_vals = [0]*4
+            if data.get("pre_test"):
+                # assume pre-test values if exist
+                pre_vals = [data["pre_test"].get(f"Q{i}",0) for i in range(1,5)]
+            post_vals = [lcm,gcd,frac.numerator,1]  # SimEq placeholder
+            fig,ax=plt.subplots()
+            ax.bar(np.arange(len(labels))-0.15, pre_vals, width=0.3,label="Pre-Test",color="red")
+            ax.bar(np.arange(len(labels))+0.15, post_vals, width=0.3,label="Post-Test",color="green")
             ax.set_xticks(np.arange(len(labels)))
             ax.set_xticklabels(labels)
-            ax.set_ylabel("Values / Scores")
+            ax.set_ylabel("Scores / Values")
+            ax.legend()
+            st.pyplot(fig)
+
+    # -------------------------
+    # GENERAL TEST (After Post-Test)
+    # -------------------------
+    elif activity=="General Test":
+        st.header("📝 General Test (All Topics, Use Simulation)")
+
+        # LCM & GCD
+        a = st.number_input("Number A",2,50,key="genA")
+        b = st.number_input("Number B",2,50,key="genB")
+        gcd_val = math.gcd(a,b)
+        lcm_val = a*b//gcd_val
+        st.write("Use simulation below if needed!")
+
+        # Ratios
+        r1 = st.number_input("Value A",1,100,key="genR1")
+        r2 = st.number_input("Value B",1,100,key="genR2")
+        frac_val = Fraction(r1,r2)
+
+        # Simultaneous Equations
+        a1 = st.number_input("a1",2,key="gena1")
+        b1 = st.number_input("b1",3,key="genb1")
+        c1 = st.number_input("c1",11,key="genc1")
+        a2 = st.number_input("a2",1,key="gena2")
+        b2 = st.number_input("b2",-1,key="genb2")
+        c2 = st.number_input("c2",1,key="genc2")
+
+        if st.button("Submit General Test"):
+            data["general_test"] = {
+                "LCM":lcm_val,"GCD":gcd_val,
+                "Ratio":f"{frac_val.numerator}:{frac_val.denominator}",
+                "SimEq":{"eq1":[a1,b1,c1],"eq2":[a2,b2,c2]}
+            }
+            with open(file,"w") as f:
+                json.dump(data,f)
+            st.success("General Test submitted ✅")
+
+            # Update Improvement Graph to include general test
+            labels = ["LCM","GCD","Ratio","SimEq"]
+            pre_vals = [data["pre_test"].get(f"Q{i}",0) for i in range(1,5)]
+            post_vals = [data["post_test"]["LCM"],data["post_test"]["GCD"],1,1]  # placeholder for simplicity
+            gen_vals = [lcm_val,gcd_val,frac_val.numerator,1]
+            fig,ax=plt.subplots()
+            ax.bar(np.arange(len(labels))-0.2, pre_vals,width=0.2,label="Pre-Test",color="red")
+            ax.bar(np.arange(len(labels)), post_vals,width=0.2,label="Post-Test",color="green")
+            ax.bar(np.arange(len(labels))+0.2, gen_vals,width=0.2,label="General Test",color="blue")
+            ax.set_xticks(np.arange(len(labels)))
+            ax.set_xticklabels(labels)
+            ax.set_ylabel("Scores / Values")
             ax.legend()
             st.pyplot(fig)
 
@@ -232,6 +283,7 @@ if user_type=="Learner" and st.session_state.learner_name:
             st.write("Multiples B:", multiples_b)
             st.success(f"GCD={gcd}, LCM={lcm}")
 
+            # Plot
             fig,ax = plt.subplots()
             ax.scatter(factors_a,[1]*len(factors_a), label="Factors A", color=COLORS["A"])
             ax.scatter(factors_b,[2]*len(factors_b), label="Factors B", color=COLORS["B"])
@@ -264,7 +316,6 @@ if user_type=="Learner" and st.session_state.learner_name:
                     y = (a1*c2 - a2*c1)/det
                     st.success(f"Intersection at x={x}, y={y}")
 
-                    # Graph with clearer intersection
                     x_vals = np.linspace(min(x-5,0), max(x+5,10),400)
                     y1_vals = (c1 - a1*x_vals)/b1
                     y2_vals = (c2 - a2*x_vals)/b2
@@ -286,6 +337,7 @@ elif user_type=="Editor":
     password = st.text_input("Password", type="password")
     if password=="alex":
         st.success("Access Granted")
+        st.subheader("📊 Feedback")
         file="feedback/feedback.json"
         if os.path.exists(file):
             with open(file) as f:
